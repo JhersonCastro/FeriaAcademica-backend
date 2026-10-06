@@ -6,30 +6,29 @@ using Microsoft.AspNetCore.Identity;
 
 namespace FeriaAcademica.Infrastructure.Auth;
 
-/// <summary>Autenticación basada en cookie de sesión de ASP.NET Core Identity (SignInManager).</summary>
 internal sealed class AuthService(UserManager<ApplicationUser> users, SignInManager<ApplicationUser> signIn) : IAuthService
 {
-    public async Task<UsuarioDto> RegistrarAsync(string email, string password, string nombre, CancellationToken ct)
+    public async Task<UserDto> RegisterAsync(string email, string password, string fullName, CancellationToken ct)
     {
-        var user = new ApplicationUser { UserName = email, Email = email, NombreCompleto = nombre };
-        Validar(await users.CreateAsync(user, password));
+        var user = new ApplicationUser { UserName = email, Email = email, FullName = fullName };
+        Ensure(await users.CreateAsync(user, password));
         await signIn.SignInAsync(user, isPersistent: false);
-        return ADto(user);
+        return ToDto(user);
     }
 
-    public async Task<UsuarioDto> LoginAsync(string email, string password, bool recordar, CancellationToken ct)
+    public async Task<UserDto> SignInAsync(string email, string password, bool remember, CancellationToken ct)
     {
-        var user = await users.FindByEmailAsync(email) ?? throw new DomainException("Correo o contraseña incorrectos.");
-        var r = await signIn.PasswordSignInAsync(user, password, recordar, lockoutOnFailure: true);
-        if (r.IsLockedOut) throw new DomainException("Cuenta bloqueada temporalmente por intentos fallidos.");
-        if (!r.Succeeded) throw new DomainException("Correo o contraseña incorrectos.");
-        return ADto(user);
+        var user = await users.FindByEmailAsync(email) ?? throw new DomainException("Invalid email or password.");
+        var result = await signIn.PasswordSignInAsync(user, password, remember, lockoutOnFailure: true);
+        if (result.IsLockedOut) throw new DomainException("Account temporarily locked after too many failed attempts.");
+        if (!result.Succeeded) throw new DomainException("Invalid email or password.");
+        return ToDto(user);
     }
 
-    public async Task<UsuarioDto> LoginExternoAsync(CancellationToken ct)
+    public async Task<UserDto> ExternalSignInAsync(CancellationToken ct)
     {
-        var info = await signIn.GetExternalLoginInfoAsync() ?? throw new DomainException("No se pudo completar el inicio de sesión externo.");
-        var email = info.Principal.FindFirstValue(ClaimTypes.Email) ?? throw new DomainException("El proveedor no entregó un correo.");
+        var info = await signIn.GetExternalLoginInfoAsync() ?? throw new DomainException("External sign-in could not be completed.");
+        var email = info.Principal.FindFirstValue(ClaimTypes.Email) ?? throw new DomainException("The provider did not return an email.");
 
         var user = await users.FindByLoginAsync(info.LoginProvider, info.ProviderKey);
         if (user is null)
@@ -40,21 +39,22 @@ internal sealed class AuthService(UserManager<ApplicationUser> users, SignInMana
                 user = new ApplicationUser
                 {
                     UserName = email, Email = email, EmailConfirmed = true,
-                    NombreCompleto = info.Principal.FindFirstValue(ClaimTypes.Name) ?? email,
+                    FullName = info.Principal.FindFirstValue(ClaimTypes.Name) ?? email,
                 };
-                Validar(await users.CreateAsync(user));
+                Ensure(await users.CreateAsync(user));
             }
-            Validar(await users.AddLoginAsync(user, info)); // vincula Google al usuario local
+            Ensure(await users.AddLoginAsync(user, info));
         }
         await signIn.SignInAsync(user, isPersistent: false, info.LoginProvider);
-        return ADto(user);
+        return ToDto(user);
     }
 
-    public Task CerrarSesionAsync() => signIn.SignOutAsync();
+    public Task SignOutAsync() => signIn.SignOutAsync();
 
-    private static UsuarioDto ADto(ApplicationUser u) => new(u.Id, u.Email!, u.NombreCompleto);
-    private static void Validar(IdentityResult r)
+    private static UserDto ToDto(ApplicationUser u) => new(u.Id, u.Email!, u.FullName);
+
+    private static void Ensure(IdentityResult result)
     {
-        if (!r.Succeeded) throw new DomainException(string.Join(" ", r.Errors.Select(e => e.Description)));
+        if (!result.Succeeded) throw new DomainException(string.Join(" ", result.Errors.Select(e => e.Description)));
     }
 }

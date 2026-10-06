@@ -5,16 +5,15 @@ public abstract class Entity
     public Guid Id { get; protected set; } = Guid.NewGuid();
 }
 
-public interface IDomainEvent { DateTime OcurridoEn { get; } }
+public interface IDomainEvent { DateTime OccurredAt { get; } }
 
-/// <summary>Raíz de agregado: único punto de entrada para modificar el agregado y levantar eventos de dominio.</summary>
 public abstract class AggregateRoot : Entity
 {
-    private readonly List<IDomainEvent> _eventos = [];
-    public IReadOnlyCollection<IDomainEvent> EventosDeDominio => _eventos;
+    private readonly List<IDomainEvent> _domainEvents = [];
+    public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents;
 
-    protected void Levantar(IDomainEvent evento) => _eventos.Add(evento);
-    public void LimpiarEventos() => _eventos.Clear();
+    protected void Raise(IDomainEvent domainEvent) => _domainEvents.Add(domainEvent);
+    public void ClearDomainEvents() => _domainEvents.Clear();
 }
 
-public class DomainException(string mensaje) : Exception(mensaje);
+public class DomainException(string message) : Exception(message);
