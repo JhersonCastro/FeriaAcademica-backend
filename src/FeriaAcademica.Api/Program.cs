@@ -14,18 +14,18 @@ builder.Services.AddOpenApi();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(config);
 
-// Autenticación: cookie de sesión de ASP.NET Core Identity. Google (OAuth 2.0) solo identifica al usuario;
-// después Identity crea/vincula la cuenta local y emite SU cookie, igual que con usuario y contraseña.
+// Cookie-based auth through ASP.NET Core Identity. Google only identifies the user;
+// Identity then creates/links the local account and issues its own cookie.
 var auth = builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme);
 auth.AddIdentityCookies(c => c.ApplicationCookie?.Configure(o =>
 {
     o.Cookie.Name = "feria.auth";
     o.Cookie.HttpOnly = true;
-    o.Cookie.SameSite = SameSiteMode.Lax;        // Angular en localhost:4200 y API en localhost:5xxx son "same-site"
+    o.Cookie.SameSite = SameSiteMode.Lax;        // localhost:4200 and the API on another localhost port are same-site
     o.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
     o.ExpireTimeSpan = TimeSpan.FromHours(8);
     o.SlidingExpiration = true;
-    // Es una API: responder 401/403 en vez de redirigir a una página de login.
+    // API: answer 401/403 instead of redirecting to a login page.
     o.Events.OnRedirectToLogin = ctx => { ctx.Response.StatusCode = StatusCodes.Status401Unauthorized; return Task.CompletedTask; };
     o.Events.OnRedirectToAccessDenied = ctx => { ctx.Response.StatusCode = StatusCodes.Status403Forbidden; return Task.CompletedTask; };
 }));
@@ -38,7 +38,7 @@ if (!string.IsNullOrWhiteSpace(config["Authentication:Google:ClientId"]))
         o.ClientSecret = config["Authentication:Google:ClientSecret"]!;
         o.SignInScheme = IdentityConstants.ExternalScheme;
     });
-    // Microsoft / otros: auth.AddMicrosoftAccount(...) con el mismo patrón.
+    // Microsoft and other providers can be added the same way (AddMicrosoftAccount).
 }
 
 builder.Services.AddAuthorization();
@@ -46,14 +46,14 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p => p.WithOrigins("http://loca
 
 var app = builder.Build();
 
-// Reglas de negocio violadas -> 400 con ProblemDetails.
+// Domain rule violations -> 400 ProblemDetails.
 app.Use(async (ctx, next) =>
 {
     try { await next(); }
     catch (DomainException ex)
     {
         ctx.Response.StatusCode = StatusCodes.Status400BadRequest;
-        await ctx.Response.WriteAsJsonAsync(new ProblemDetails { Title = "Regla de negocio", Detail = ex.Message, Status = 400 });
+        await ctx.Response.WriteAsJsonAsync(new ProblemDetails { Title = "Business rule violation", Detail = ex.Message, Status = 400 });
     }
 });
 
@@ -61,7 +61,7 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     using var scope = app.Services.CreateScope();
-    scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreated(); // concepto: sin migraciones aún
+    scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreated(); // no migrations yet
 }
 
 app.UseHttpsRedirection();

@@ -2,34 +2,29 @@ using FeriaAcademica.Application.Abstractions;
 
 namespace FeriaAcademica.Application.Auth;
 
-public sealed record UsuarioDto(string Id, string Email, string Nombre);
+public sealed record UserDto(string Id, string Email, string FullName);
 
-/// <summary>
-/// Puerto de identidad. La implementación (ASP.NET Core Identity + SignInManager) vive en Infrastructure
-/// y es quien emite la cookie de sesión.
-/// </summary>
 public interface IAuthService
 {
-    Task<UsuarioDto> RegistrarAsync(string email, string password, string nombre, CancellationToken ct);
-    Task<UsuarioDto> LoginAsync(string email, string password, bool recordar, CancellationToken ct);
-    /// <summary>Completa el login con Google/Microsoft: crea el usuario si no existe, vincula el login externo e inicia sesión.</summary>
-    Task<UsuarioDto> LoginExternoAsync(CancellationToken ct);
-    Task CerrarSesionAsync();
+    Task<UserDto> RegisterAsync(string email, string password, string fullName, CancellationToken ct);
+    Task<UserDto> SignInAsync(string email, string password, bool remember, CancellationToken ct);
+    Task<UserDto> ExternalSignInAsync(CancellationToken ct);
+    Task SignOutAsync();
 }
 
-public sealed record RegistrarUsuarioCommand(string Email, string Password, string Nombre) : ICommand<UsuarioDto>;
-public sealed record IniciarSesionCommand(string Email, string Password, bool Recordar) : ICommand<UsuarioDto>;
-public sealed record IniciarSesionExternaCommand : ICommand<UsuarioDto>;
-public sealed record CerrarSesionCommand : ICommand<bool>;
+public sealed record RegisterUserCommand(string Email, string Password, string FullName) : ICommand<UserDto>;
+public sealed record SignInCommand(string Email, string Password, bool Remember) : ICommand<UserDto>;
+public sealed record ExternalSignInCommand : ICommand<UserDto>;
+public sealed record SignOutCommand : ICommand<bool>;
 
 internal sealed class AuthHandlers(IAuthService auth) :
-    ICommandHandler<RegistrarUsuarioCommand, UsuarioDto>,
-    ICommandHandler<IniciarSesionCommand, UsuarioDto>,
-    ICommandHandler<IniciarSesionExternaCommand, UsuarioDto>,
-    ICommandHandler<CerrarSesionCommand, bool>
+    ICommandHandler<RegisterUserCommand, UserDto>,
+    ICommandHandler<SignInCommand, UserDto>,
+    ICommandHandler<ExternalSignInCommand, UserDto>,
+    ICommandHandler<SignOutCommand, bool>
 {
-    public Task<UsuarioDto> Handle(RegistrarUsuarioCommand c, CancellationToken ct) => auth.RegistrarAsync(c.Email, c.Password, c.Nombre, ct);
-    public Task<UsuarioDto> Handle(IniciarSesionCommand c, CancellationToken ct) => auth.LoginAsync(c.Email, c.Password, c.Recordar, ct);
-    public Task<UsuarioDto> Handle(IniciarSesionExternaCommand c, CancellationToken ct) => auth.LoginExternoAsync(ct);
-    public async Task<bool> Handle(CerrarSesionCommand c, CancellationToken ct) { await auth.CerrarSesionAsync(); return true; }
+    public Task<UserDto> Handle(RegisterUserCommand c, CancellationToken ct) => auth.RegisterAsync(c.Email, c.Password, c.FullName, ct);
+    public Task<UserDto> Handle(SignInCommand c, CancellationToken ct) => auth.SignInAsync(c.Email, c.Password, c.Remember, ct);
+    public Task<UserDto> Handle(ExternalSignInCommand c, CancellationToken ct) => auth.ExternalSignInAsync(ct);
+    public async Task<bool> Handle(SignOutCommand c, CancellationToken ct) { await auth.SignOutAsync(); return true; }
 }

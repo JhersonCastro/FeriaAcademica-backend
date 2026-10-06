@@ -1,21 +1,19 @@
-using FeriaAcademica.Application.Eventos.Queries;
-using FeriaAcademica.Domain.Eventos;
+using FeriaAcademica.Application.Events.Queries;
+using FeriaAcademica.Domain.Events;
 using Microsoft.EntityFrameworkCore;
 
 namespace FeriaAcademica.Infrastructure.Persistence;
 
-/// <summary>Lado escritura: carga y guarda agregados completos.</summary>
-internal sealed class EventoRepository(AppDbContext db) : IEventoRepository
+internal sealed class AcademicEventRepository(AppDbContext db) : IAcademicEventRepository
 {
-    public Task<Evento?> ObtenerAsync(Guid id, CancellationToken ct) => db.Eventos.FirstOrDefaultAsync(e => e.Id == id, ct);
-    public async Task AgregarAsync(Evento evento, CancellationToken ct) => await db.Eventos.AddAsync(evento, ct);
+    public Task<AcademicEvent?> GetAsync(Guid id, CancellationToken ct) => db.Events.FirstOrDefaultAsync(e => e.Id == id, ct);
+    public async Task AddAsync(AcademicEvent academicEvent, CancellationToken ct) => await db.Events.AddAsync(academicEvent, ct);
 }
 
-/// <summary>Lado lectura: proyecta directo a DTOs, sin cargar agregados.</summary>
-internal sealed class EventoReadModel(AppDbContext db) : IEventoReadModel
+internal sealed class EventReadModel(AppDbContext db) : IEventReadModel
 {
-    public async Task<IReadOnlyList<EventoDto>> ListarAsync(CancellationToken ct) =>
-        await db.Eventos.AsNoTracking().OrderBy(e => e.Fecha)
-            .Select(e => new EventoDto(e.Id, e.Titulo, e.Categoria, e.Responsable, e.Fecha, e.Cupos, e.Estado.ToString()))
+    public async Task<IReadOnlyList<EventDto>> ListAsync(CancellationToken ct) =>
+        await db.Events.AsNoTracking().OrderBy(e => e.Date)
+            .Select(e => new EventDto(e.Id, e.Title, e.Category, e.Organizer, e.Date, e.Capacity, e.Status.ToString()))
             .ToListAsync(ct);
 }
