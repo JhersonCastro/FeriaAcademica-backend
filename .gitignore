@@ -3,8 +3,5 @@ obj/
 .vs/
 .idea/
 *.user
-*.db
-*.db-shm
-*.db-wal
 appsettings.*.local.json
 secrets.json
