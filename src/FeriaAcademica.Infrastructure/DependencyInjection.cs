@@ -16,7 +16,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection s, IConfiguration config)
     {
-        s.AddDbContext<AppDbContext>(o => o.UseSqlite(config.GetConnectionString("Default") ?? "Data Source=feria.db"));
+        s.AddDbContext<AppDbContext>(o => o.UseNpgsql(config.GetConnectionString("Default")));
         s.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<AppDbContext>());
         s.AddScoped<IAcademicEventRepository, AcademicEventRepository>();
         s.AddScoped<IEventReadModel, EventReadModel>();
