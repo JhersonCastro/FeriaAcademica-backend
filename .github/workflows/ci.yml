@@ -10,6 +10,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  branch-name:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check branch name (type/short-description)
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          pattern='^(feature|fix|hotfix|refactor|test|docs|chore)/[a-z0-9][a-z0-9._-]*$'
+          if [[ ! "$HEAD_REF" =~ $pattern ]]; then
+            echo "::error::Branch '$HEAD_REF' must look like type/short-description (feature, fix, hotfix, refactor, test, docs, chore), lowercase."
+            exit 1
+          fi
+
   build-and-test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
