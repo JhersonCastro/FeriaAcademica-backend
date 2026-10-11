@@ -1,7 +1,9 @@
 using FeriaAcademica.Application.Abstractions;
-using FeriaAcademica.Application.Auth;
-using FeriaAcademica.Application.Events.Queries;
+using FeriaAcademica.Application.Features.Auth;
+using FeriaAcademica.Application.Features.Events.Queries.ListEvents;
+using FeriaAcademica.Application.Features.Works.Queries.GetWork;
 using FeriaAcademica.Domain.Events;
+using FeriaAcademica.Domain.Works;
 using FeriaAcademica.Infrastructure.Auth;
 using FeriaAcademica.Infrastructure.Identity;
 using FeriaAcademica.Infrastructure.Persistence;
@@ -20,6 +22,8 @@ public static class DependencyInjection
         s.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<AppDbContext>());
         s.AddScoped<IAcademicEventRepository, AcademicEventRepository>();
         s.AddScoped<IEventReadModel, EventReadModel>();
+        s.AddScoped<IWorkRepository, WorkRepository>();
+        s.AddScoped<IWorkReadModel, WorkReadModel>();
 
         s.AddIdentityCore<ApplicationUser>(o => { o.User.RequireUniqueEmail = true; o.Password.RequiredLength = 8; })
          .AddEntityFrameworkStores<AppDbContext>()
