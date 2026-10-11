@@ -20,6 +20,12 @@ dotnet run --project src/FeriaAcademica.Api
 
 En `Development` la API aplica las migraciones pendientes al arrancar.
 
+### PostgreSQL local sin Docker
+
+- **Windows:** doble clic en `scripts/windows/feria-db.cmd`. Detecta si PostgreSQL está instalado (si no, ofrece instalarlo con `winget`) y da un menú para iniciar/parar el servicio, listar tablas, abrir `psql`, copiar el connection string y actualizar `dotnet user-secrets`.
+- **macOS:** `brew install postgresql@17 && brew services start postgresql@17`. El usuario es el de tu sistema y no lleva contraseña:
+  `Host=localhost;Port=5432;Database=feria_academica;Username=<tu-usuario>`
+
 ## Estructura
 
 ```
