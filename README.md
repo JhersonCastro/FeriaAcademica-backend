@@ -22,9 +22,10 @@ En `Development` la API aplica las migraciones pendientes al arrancar.
 
 ### PostgreSQL local sin Docker
 
-- **Windows:** doble clic en `scripts/windows/feria-db.cmd`. Detecta si PostgreSQL está instalado (si no, ofrece instalarlo con `winget`) y da un menú para iniciar/parar el servicio, listar tablas, abrir `psql`, copiar el connection string y actualizar `dotnet user-secrets`.
-- **macOS:** `brew install postgresql@17 && brew services start postgresql@17`. El usuario es el de tu sistema y no lleva contraseña:
-  `Host=localhost;Port=5432;Database=feria_academica;Username=<tu-usuario>`
+- **Windows:** doble clic en `scripts/windows/feria-db.cmd`. Detecta si PostgreSQL está instalado (si no, ofrece instalarlo con `winget`).
+
+Ambos scripts dan el mismo menú: iniciar/parar el servicio, listar tablas, abrir `psql`, copiar el connection string, actualizar `dotnet user-secrets`, reiniciar la base e instalar PostgreSQL.
+- **macOS:** doble clic en `scripts/macos/feria-db.command` (la primera vez, clic derecho → Abrir). Mismo menú que en Windows, usando Homebrew: instala PostgreSQL 17 si falta. El usuario es el de tu sistema y por defecto no lleva contraseña.
 
 ## Estructura
 
