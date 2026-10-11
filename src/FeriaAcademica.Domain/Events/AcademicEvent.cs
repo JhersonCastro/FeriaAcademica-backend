@@ -2,42 +2,56 @@ using FeriaAcademica.Domain.Common;
 
 namespace FeriaAcademica.Domain.Events;
 
-public enum EventStatus { InReview, Approved, ApprovedWithChanges, Rejected }
+public enum EventStatus { Configuration, Published, InProgress, Closed, Archived, Cancelled }
 
-public sealed record AcademicEventCreated(Guid EventId, DateTime OccurredAt) : IDomainEvent;
-public sealed record AcademicEventApproved(Guid EventId, DateTime OccurredAt) : IDomainEvent;
-
-public sealed class AcademicEvent : AggregateRoot
+public sealed class AcademicEvent : Entity
 {
-    public string Title { get; private set; } = default!;
-    public string Category { get; private set; } = default!;
-    public string Organizer { get; private set; } = default!;
-    public DateOnly Date { get; private set; }
-    public int Capacity { get; private set; }
+    public const string DefaultTieBreakRulesJson = """["jury","attendees","submission_date"]""";
+
+    private readonly List<EventStage> _stages = [];
+
+    public Guid InstitutionId { get; private set; }
+    public Guid? TemplateId { get; private set; }   // origin only: the event copies the template, it does not depend on it
+    public string Name { get; private set; } = default!;
     public EventStatus Status { get; private set; }
+    public string? CancellationReason { get; private set; }
+    public DateTime? StartDate { get; private set; }
+    public DateTime? EndDate { get; private set; }
+    public int MaxRejections { get; private set; }
+    public double JuryWeight { get; private set; }
+    public double AttendeeWeight { get; private set; }
+    public string TieBreakRulesJson { get; private set; } = DefaultTieBreakRulesJson;
+    public Guid CreatedBy { get; private set; }
+    public IReadOnlyCollection<EventStage> Stages => _stages;
 
     private AcademicEvent() { } // EF Core
 
-    public static AcademicEvent Create(string title, string category, string organizer, DateOnly date, int capacity)
+    public static AcademicEvent Create(Guid institutionId, string name, Guid createdBy, Guid? templateId = null,
+        int maxRejections = 3, double juryWeight = 0.7, double attendeeWeight = 0.3)
     {
-        if (string.IsNullOrWhiteSpace(title)) throw new DomainException("Title is required.");
-        if (capacity <= 0) throw new DomainException("Capacity must be greater than zero.");
+        if (string.IsNullOrWhiteSpace(name)) throw new DomainException("Name is required.");
+        if (maxRejections < 1) throw new DomainException("Max rejections must be at least one.");
+        if (Math.Abs(juryWeight + attendeeWeight - 1.0) > 1e-9) throw new DomainException("Jury and attendee weights must add up to 100%.");
 
-        var academicEvent = new AcademicEvent
+        return new AcademicEvent
         {
-            Title = title.Trim(), Category = category, Organizer = organizer,
-            Date = date, Capacity = capacity, Status = EventStatus.InReview,
+            InstitutionId = institutionId, TemplateId = templateId, Name = name.Trim(), Status = EventStatus.Configuration,
+            MaxRejections = maxRejections, JuryWeight = juryWeight, AttendeeWeight = attendeeWeight, CreatedBy = createdBy,
         };
-        academicEvent.Raise(new AcademicEventCreated(academicEvent.Id, DateTime.UtcNow));
-        return academicEvent;
     }
 
-    public void Approve()
+    public EventStage AddStage(StageType type, bool active)
     {
-        if (Status == EventStatus.Rejected) throw new DomainException("A rejected event cannot be approved.");
-        Status = EventStatus.Approved;
-        Raise(new AcademicEventApproved(Id, DateTime.UtcNow));
+        if (_stages.Any(s => s.Type == type)) throw new DomainException($"The event already has a {type} stage.");
+        var stage = EventStage.Create(Id, type, active);
+        _stages.Add(stage);
+        return stage;
     }
 
-    public void Reject() => Status = EventStatus.Rejected;
+    public void Publish()
+    {
+        if (Status != EventStatus.Configuration) throw new DomainException($"An event in state {Status} cannot be published.");
+        if (_stages.All(s => s.Status == StageStatus.Disabled)) throw new DomainException("At least one stage must be active.");
+        Status = EventStatus.Published;
+    }
 }
