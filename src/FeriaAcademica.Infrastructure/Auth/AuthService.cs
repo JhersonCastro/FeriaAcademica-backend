@@ -1,5 +1,4 @@
-using System.Security.Claims;
-using FeriaAcademica.Application.Auth;
+using FeriaAcademica.Application.Features.Auth;
 using FeriaAcademica.Domain.Common;
 using FeriaAcademica.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -25,33 +24,9 @@ internal sealed class AuthService(UserManager<ApplicationUser> users, SignInMana
         return ToDto(user);
     }
 
-    public async Task<UserDto> ExternalSignInAsync(CancellationToken ct)
-    {
-        var info = await signIn.GetExternalLoginInfoAsync() ?? throw new DomainException("External sign-in could not be completed.");
-        var email = info.Principal.FindFirstValue(ClaimTypes.Email) ?? throw new DomainException("The provider did not return an email.");
-
-        var user = await users.FindByLoginAsync(info.LoginProvider, info.ProviderKey);
-        if (user is null)
-        {
-            user = await users.FindByEmailAsync(email);
-            if (user is null)
-            {
-                user = new ApplicationUser
-                {
-                    UserName = email, Email = email, EmailConfirmed = true,
-                    FullName = info.Principal.FindFirstValue(ClaimTypes.Name) ?? email,
-                };
-                Ensure(await users.CreateAsync(user));
-            }
-            Ensure(await users.AddLoginAsync(user, info));
-        }
-        await signIn.SignInAsync(user, isPersistent: false, info.LoginProvider);
-        return ToDto(user);
-    }
-
     public Task SignOutAsync() => signIn.SignOutAsync();
 
-    private static UserDto ToDto(ApplicationUser u) => new(u.Id, u.Email!, u.FullName);
+    private static UserDto ToDto(ApplicationUser u) => new(u.Id.ToString(), u.Email!, u.FullName);
 
     private static void Ensure(IdentityResult result)
     {
