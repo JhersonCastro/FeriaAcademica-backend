@@ -5,3 +5,6 @@ obj/
 *.user
 appsettings.*.local.json
 secrets.json
+
+# Claude Code personal settings
+.claude/settings.local.json
