@@ -1,4 +1,4 @@
-# FeriaAcademica Backend
+# FeriaAcademica Backend rama qr
 
 API para la plataforma de gestión de ferias académicas. .NET 10, ASP.NET Core Identity (cookie), EF Core con PostgreSQL y CQRS con [Mediator](https://github.com/martinothamar/Mediator) (MIT).
 
