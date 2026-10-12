@@ -51,18 +51,16 @@ Reference example: `Application/Features/Works/Commands/SubmitWork/` (command + 
 ## Domain
 
 - Entities inherit `Entity` (`Guid Id`), have private setters and a private parameterless constructor for EF, and are created through `static Create(...)`.
-- **State changes only through entity methods.** There is no public setter for state. `Work.Status` changes only inside `Work`, via `MoveTo`, which also appends to the history.
+- **State changes only through entity methods.** There is no public setter for state. `Work` is the reference: its status changes only inside the entity (via `MoveTo`, which also records the history).
 - Statuses and kinds are enums, stored as text in the database.
-- The model mirrors the original 24-table schema. `AspNetUsers` (Identity) is the table `usuario`: **Identity is the only user**. Domain entities reference users by `Guid` (no navigation to `ApplicationUser`); the foreign keys to `AspNetUsers` are configured in Infrastructure.
-- Only `Work` (and a little of `AcademicEvent`) has behaviour so far. The other entities are mapped model with factories. Extend them the same way when a use case needs it.
-- Work lifecycle: Draft → Submitted → InReview → Admitted | Draft (reject) | RejectedDefinitively; Reopen goes back to Draft; Withdraw goes Draft → Cancelled or Submitted → Draft. Rejection number `MaxRejections` closes the work automatically.
+- The model mirrors the original relational schema. `AspNetUsers` (Identity) plays the role of its `usuario` table: **Identity is the only user**. Domain entities reference users by `Guid` (no navigation to `ApplicationUser`); the foreign keys to `AspNetUsers` are configured in Infrastructure.
+- Add behaviour to an entity the same way `Work` does, when a use case needs it. Do not put it in handlers or services.
 
 ## Persistence
 
 - PostgreSQL through Npgsql. Table and column names are PascalCase (EF default); enums are strings; JSON columns are `jsonb`.
 - No cascading deletes (all foreign keys are `Restrict`).
 - Migrations live in `Infrastructure/Persistence/Migrations`. **Whenever an entity or its configuration changes, add a migration**; CI fails otherwise. In Development the API applies pending migrations on startup.
-- The four triggers of the original schema are not migrated (template only by superadmin, append-only history, jury needs the jury role, value within scale). The check constraints and unique indexes are.
 
 ```bash
 dotnet ef migrations add <Name> \
@@ -88,10 +86,4 @@ The connection string is **not** in the repo. Set it with `dotnet user-secrets s
 
 ## Tests
 
-`tests/FeriaAcademica.Domain.Tests` (xUnit) holds one or more tests per `Work` rule. When you add or change a domain rule, add or update its test. There are no handler or persistence tests yet.
-
-## Known gaps
-
-- No authorization checks yet beyond "only the assigned professor reviews a work"; roles per event are modelled but not enforced.
-- There is no endpoint for the `Work` commands and query yet (`SubmitWork`, `RejectWork`, `ReopenWork`, `GetWork`).
-- The Windows script has not been run on a real Windows machine.
+`tests/` holds the xUnit projects. When you add or change a domain rule, add or update its test, one per rule.
