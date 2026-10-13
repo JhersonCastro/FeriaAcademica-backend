@@ -24,6 +24,10 @@ public sealed class AcademicEvent : Entity
     public Guid CreatedBy { get; private set; }
     public IReadOnlyCollection<EventStage> Stages => _stages;
 
+    /// <summary>Works can be submitted or resubmitted until the reception stage ends; null means no deadline has been set.</summary>
+    public DateTime? SubmissionDeadline =>
+        _stages.FirstOrDefault(s => s.Type == StageType.Reception && s.Status != StageStatus.Disabled)?.EndDate;
+
     private AcademicEvent() { } // EF Core
 
     public static AcademicEvent Create(Guid institutionId, string name, Guid createdBy, Guid? templateId = null,
@@ -46,6 +50,14 @@ public sealed class AcademicEvent : Entity
         var stage = EventStage.Create(Id, type, active);
         _stages.Add(stage);
         return stage;
+    }
+
+    public void ScheduleStage(StageType type, DateTime startDate, DateTime endDate)
+    {
+        if (Status is EventStatus.Closed or EventStatus.Archived or EventStatus.Cancelled)
+            throw new DomainException($"The stages of an event in state {Status} cannot be rescheduled.");
+        var stage = _stages.FirstOrDefault(s => s.Type == type) ?? AddStage(type, active: true);   // scheduling a missing stage adds it
+        stage.Schedule(startDate, endDate);
     }
 
     public void Publish()

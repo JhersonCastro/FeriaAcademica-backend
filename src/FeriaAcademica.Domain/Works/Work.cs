@@ -52,9 +52,11 @@ public sealed class Work : Entity
         return artifact;
     }
 
-    public void Submit(Guid actorId, DateTime now)
+    /// <param name="deadline">End of the event's reception stage; null when the event has not set one.</param>
+    public void Submit(Guid actorId, DateTime now, DateTime? deadline = null)
     {
         if (Status != WorkStatus.Draft) throw new DomainException("Only a draft can be submitted.");
+        if (now > deadline) throw new DomainException($"The call is closed: the submission deadline was {deadline:yyyy-MM-dd HH:mm} UTC.");
         if (_artifacts.Count == 0) throw new DomainException("A work needs at least one artifact to be submitted.");
 
         var item = CurrentQueueItem();
