@@ -9,6 +9,11 @@ namespace FeriaAcademica.Infrastructure.Persistence;
 internal sealed class AcademicEventRepository(AppDbContext db) : IAcademicEventRepository
 {
     public Task<AcademicEvent?> GetAsync(Guid id, CancellationToken ct) => db.Events.Include(e => e.Stages).FirstOrDefaultAsync(e => e.Id == id, ct);
+
+    public Task<AcademicEvent?> GetByParticipationAsync(Guid participationId, CancellationToken ct) =>
+        db.Events.Include(e => e.Stages)
+            .FirstOrDefaultAsync(e => db.Participations.Any(p => p.Id == participationId && p.EventId == e.Id), ct);
+
     public async Task AddAsync(AcademicEvent academicEvent, CancellationToken ct) => await db.Events.AddAsync(academicEvent, ct);
 }
 

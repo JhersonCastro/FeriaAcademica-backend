@@ -79,6 +79,42 @@ public class WorkTests
         Assert.Throws<DomainException>(() => work.Submit(Author, T0.AddMinutes(9)));
     }
 
+    // ---- Fecha límite (HU-013) ----
+
+    [Fact]
+    public void Submit_after_the_deadline_is_rejected_because_the_call_is_closed()
+    {
+        var work = NewDraft();
+        work.AddArtifact(ArtifactType.Document, "report.pdf", null, T0);
+
+        var ex = Assert.Throws<DomainException>(() => work.Submit(Author, T0.AddDays(2), deadline: T0.AddDays(1)));
+        Assert.Contains("call is closed", ex.Message);
+        Assert.Equal(WorkStatus.Draft, work.Status);
+        Assert.Empty(work.ReviewQueue);
+    }
+
+    [Fact]
+    public void Submit_up_to_the_deadline_is_allowed()
+    {
+        var work = NewDraft();
+        work.AddArtifact(ArtifactType.Document, "report.pdf", null, T0);
+
+        work.Submit(Author, T0.AddDays(1), deadline: T0.AddDays(1));
+
+        Assert.Equal(WorkStatus.Submitted, work.Status);
+    }
+
+    [Fact]
+    public void Resubmit_after_a_rejection_past_the_deadline_is_rejected()
+    {
+        var work = NewInReview();
+        work.Reject(Professor, "Needs a clearer objective.", T0.AddMinutes(3));
+
+        var ex = Assert.Throws<DomainException>(() => work.Submit(Author, T0.AddDays(2), deadline: T0.AddDays(1)));
+        Assert.Contains("call is closed", ex.Message);
+        Assert.Equal(WorkStatus.Draft, work.Status);
+    }
+
     // ---- Rechazar ----
 
     [Fact]
