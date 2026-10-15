@@ -1,8 +1,11 @@
 using FeriaAcademica.Application.Abstractions;
 using FeriaAcademica.Application.Features.Auth;
 using FeriaAcademica.Application.Features.Events.Queries.ListEvents;
+using FeriaAcademica.Application.Features.Notifications.Queries.ListMyNotifications;
 using FeriaAcademica.Application.Features.Works.Queries.GetWork;
+using FeriaAcademica.Application.Features.Works.Queries.ListAssignedWorks;
 using FeriaAcademica.Domain.Events;
+using FeriaAcademica.Domain.Notifications;
 using FeriaAcademica.Domain.Works;
 using FeriaAcademica.Infrastructure.Auth;
 using FeriaAcademica.Infrastructure.Identity;
@@ -24,6 +27,10 @@ public static class DependencyInjection
         s.AddScoped<IEventReadModel, EventReadModel>();
         s.AddScoped<IWorkRepository, WorkRepository>();
         s.AddScoped<IWorkReadModel, WorkReadModel>();
+        s.AddScoped<IAssignedWorkReadModel, AssignedWorkReadModel>();
+        s.AddScoped<IParticipationRepository, ParticipationRepository>();
+        s.AddScoped<INotificationRepository, NotificationRepository>();
+        s.AddScoped<INotificationReadModel, NotificationReadModel>();
 
         s.AddIdentityCore<ApplicationUser>(o => { o.User.RequireUniqueEmail = true; o.Password.RequiredLength = 8; })
          .AddEntityFrameworkStores<AppDbContext>()
