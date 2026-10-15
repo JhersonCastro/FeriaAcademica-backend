@@ -20,5 +20,9 @@ public sealed class Notification : Entity
         return new Notification { UserId = userId, EventId = eventId, Type = type, Message = message, CreatedAt = now };
     }
 
-    public void MarkAsRead() => IsRead = true;
+    public void MarkAsRead(Guid userId)
+    {
+        if (userId != UserId) throw new DomainException("Only the recipient can mark a notification as read.");
+        IsRead = true;
+    }
 }
