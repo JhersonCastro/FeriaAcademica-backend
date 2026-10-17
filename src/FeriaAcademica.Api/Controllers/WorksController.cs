@@ -2,6 +2,7 @@ using System.Security.Claims;
 using FeriaAcademica.Application.Features.Works.Commands.AddArtifact;
 using FeriaAcademica.Application.Features.Works.Commands.CreateWork;
 using FeriaAcademica.Application.Features.Works.Commands.SubmitWork;
+using FeriaAcademica.Application.Features.Works.Commands.WithdrawWork;
 using FeriaAcademica.Application.Features.Works.Queries.GetWork;
 using FeriaAcademica.Application.Features.Works.Queries.ListMyWorks;
 using FeriaAcademica.Domain.Works;
@@ -48,6 +49,17 @@ public class WorksController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Submit(Guid id, CancellationToken ct)
     {
         await mediator.Send(new SubmitWorkCommand(id, UserId), ct);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Takes a submitted work that nobody has opened yet back to draft, so a new version of its artifacts can be added and it can be
+    /// submitted again; only until the submission deadline. Withdrawing a draft cancels the work.
+    /// </summary>
+    [HttpPost("{id:guid}/withdraw")]
+    public async Task<IActionResult> Withdraw(Guid id, CancellationToken ct)
+    {
+        await mediator.Send(new WithdrawWorkCommand(id, UserId), ct);
         return NoContent();
     }
 }
