@@ -2,6 +2,8 @@ using System.Security.Claims;
 using FeriaAcademica.Application.Features.Works.Commands.AddArtifact;
 using FeriaAcademica.Application.Features.Works.Commands.CreateWork;
 using FeriaAcademica.Application.Features.Works.Commands.SubmitWork;
+using FeriaAcademica.Application.Features.Works.Queries.GetWork;
+using FeriaAcademica.Application.Features.Works.Queries.ListMyWorks;
 using FeriaAcademica.Domain.Works;
 using Mediator;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace FeriaAcademica.Api.Controllers;
 
-/// <summary>The author's side of a work: create it, attach artifacts and submit it before the deadline.</summary>
+/// <summary>The author's side of a work: create it, attach artifacts, submit it before the deadline and follow its review.</summary>
 [ApiController, Route("api/works"), Authorize]
 public class WorksController(IMediator mediator) : ControllerBase
 {
@@ -18,6 +20,15 @@ public class WorksController(IMediator mediator) : ControllerBase
     public sealed record AddArtifactRequest(ArtifactType Type, string? LinkUrl, string? FileUrl, string? FileName, long? FileSizeBytes);
 
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+    /// <summary>The signed-in participant's works, with their status and the feedback of the latest review.</summary>
+    [HttpGet("mine")]
+    public async Task<IReadOnlyList<MyWorkDto>> ListMine(CancellationToken ct) => await mediator.Send(new ListMyWorksQuery(UserId), ct);
+
+    /// <summary>A work with its artifacts and all the reviewer feedback; only its author can read it.</summary>
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> Get(Guid id, CancellationToken ct) =>
+        await mediator.Send(new GetWorkQuery(id, UserId), ct) is { } work ? Ok(work) : NotFound();
 
     [HttpPost]
     public async Task<IActionResult> Create(CreateWorkRequest r, CancellationToken ct)
