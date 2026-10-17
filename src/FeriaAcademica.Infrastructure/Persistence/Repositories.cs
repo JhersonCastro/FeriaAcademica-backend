@@ -29,6 +29,8 @@ internal sealed class WorkRepository(AppDbContext db) : IWorkRepository
 {
     public Task<Work?> GetAsync(Guid id, CancellationToken ct) =>
         db.Works.Include(w => w.Artifacts).Include(w => w.ReviewQueue).FirstOrDefaultAsync(w => w.Id == id, ct);
+
+    public async Task AddAsync(Work work, CancellationToken ct) => await db.Works.AddAsync(work, ct);
 }
 
 internal sealed class WorkReadModel(AppDbContext db) : IWorkReadModel
@@ -46,4 +48,9 @@ internal sealed class WorkReadModel(AppDbContext db) : IWorkReadModel
         return w is null ? null : new WorkDto(w.Id, w.ParticipationId, w.ProfessorId, w.Title, w.Summary, w.Status.ToString(),
             w.CurrentAttempt, w.RejectionCount, w.MaxRejections, w.SubmittedAt, w.Closure?.ToString(), w.ClosureReason, w.ClosedAt, w.ArtifactCount);
     }
+}
+
+internal sealed class ParticipationRepository(AppDbContext db) : IParticipationRepository
+{
+    public Task<Participation?> GetAsync(Guid id, CancellationToken ct) => db.Participations.FirstOrDefaultAsync(p => p.Id == id, ct);
 }

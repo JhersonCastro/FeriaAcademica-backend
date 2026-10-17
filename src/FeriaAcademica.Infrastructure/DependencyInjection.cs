@@ -24,6 +24,7 @@ public static class DependencyInjection
         s.AddScoped<IEventReadModel, EventReadModel>();
         s.AddScoped<IWorkRepository, WorkRepository>();
         s.AddScoped<IWorkReadModel, WorkReadModel>();
+        s.AddScoped<IParticipationRepository, ParticipationRepository>();
 
         s.AddIdentityCore<ApplicationUser>(o => { o.User.RequireUniqueEmail = true; o.Password.RequiredLength = 8; })
          .AddEntityFrameworkStores<AppDbContext>()
