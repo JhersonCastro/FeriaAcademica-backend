@@ -82,6 +82,39 @@ public class WorkSubmissionTests
         Assert.Empty(work.Artifacts);
     }
 
+    [Fact]
+    public void A_https_link_such_as_a_YouTube_video_is_accepted()
+    {
+        var work = NewDraft();
+
+        var artifact = work.AddArtifact(ArtifactType.Video, null, "https://www.youtube.com/watch?v=dQw4w9WgXcQ", T0, Deadline);
+
+        Assert.Equal("https://www.youtube.com/watch?v=dQw4w9WgXcQ", artifact.LinkUrl);
+        Assert.Null(artifact.FileUrl);
+    }
+
+    [Fact]
+    public void A_link_that_is_not_a_full_address_is_rejected()
+    {
+        var work = NewDraft();
+
+        Assert.Throws<DomainException>(() => work.AddArtifact(ArtifactType.Video, null, "my video", T0));
+        Assert.Throws<DomainException>(() => work.AddArtifact(ArtifactType.Video, null, "www.youtube.com/watch?v=1", T0));
+        Assert.Empty(work.Artifacts);
+    }
+
+    [Theory]
+    [InlineData("ftp://files.example.org/video.mp4")]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("file:///C:/video.mp4")]
+    public void A_link_with_a_scheme_other_than_http_or_https_is_rejected(string link)
+    {
+        var work = NewDraft();
+
+        Assert.Throws<DomainException>(() => work.AddArtifact(ArtifactType.Video, null, link, T0));
+        Assert.Empty(work.Artifacts);
+    }
+
     // ---- HU-012: replace a submitted work before the deadline ----
 
     private static Work NewSubmitted()

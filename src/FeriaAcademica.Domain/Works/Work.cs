@@ -58,6 +58,7 @@ public sealed class Work : Entity
     {
         if (Status != WorkStatus.Draft) throw new DomainException("A work can only be edited while it is a draft.");
         EnsureBeforeDeadline(now, deadline);
+        if (!string.IsNullOrWhiteSpace(linkUrl)) ArtifactLinkRules.Validate(linkUrl);
         var version = _artifacts.Where(a => a.Type == type).Select(a => a.Version).DefaultIfEmpty(0).Max() + 1;
         var artifact = new Artifact(Id, type, version, fileUrl, linkUrl, now);
         _artifacts.Add(artifact);
