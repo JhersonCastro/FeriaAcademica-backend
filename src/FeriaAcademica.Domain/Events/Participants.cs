@@ -51,4 +51,10 @@ public sealed class Participation : Entity
 
     public static Participation Create(Guid eventId, Guid userId, Guid? invitationId = null) =>
         new() { EventId = eventId, UserId = userId, InvitationId = invitationId };
+
+    /// <summary>Only the participant can create, edit, submit or withdraw the works of their participation.</summary>
+    public void EnsureOwnedBy(Guid userId)
+    {
+        if (userId != UserId) throw new DomainException("Only the author can manage this work.");
+    }
 }
