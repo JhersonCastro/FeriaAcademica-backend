@@ -81,4 +81,38 @@ public class WorkSubmissionTests
             work.AddFile(ArtifactType.Document, "https://x.org/report.pdf", "report.pdf", OneMb, Deadline.AddMinutes(1), Deadline));
         Assert.Empty(work.Artifacts);
     }
+
+    // ---- HU-012: replace a submitted work before the deadline ----
+
+    private static Work NewSubmitted()
+    {
+        var work = NewDraft();
+        work.AddFile(ArtifactType.Document, "https://x.org/v1.pdf", "v1.pdf", OneMb, T0, Deadline);
+        work.Submit(Author, T0.AddMinutes(1), Deadline);
+        return work;
+    }
+
+    [Fact]
+    public void A_submitted_work_can_be_replaced_by_a_new_version_before_the_deadline()
+    {
+        var work = NewSubmitted();
+
+        work.Withdraw(Author, T0.AddHours(1), Deadline);
+        var replacement = work.AddFile(ArtifactType.Document, "https://x.org/v2.pdf", "v2.pdf", OneMb, T0.AddHours(1), Deadline);
+        work.Submit(Author, T0.AddHours(2), Deadline);
+
+        Assert.Equal(WorkStatus.Submitted, work.Status);
+        Assert.Equal(2, replacement.Version);
+        Assert.Equal(2, work.Artifacts.Count);   // the first version is kept
+        Assert.Equal(T0.AddMinutes(1), work.SubmittedAt);   // the first submission still counts for tie-breaks
+    }
+
+    [Fact]
+    public void A_submitted_work_cannot_be_withdrawn_to_modify_it_after_the_deadline()
+    {
+        var work = NewSubmitted();
+
+        Assert.Throws<DomainException>(() => work.Withdraw(Author, Deadline.AddMinutes(1), Deadline));
+        Assert.Equal(WorkStatus.Submitted, work.Status);
+    }
 }

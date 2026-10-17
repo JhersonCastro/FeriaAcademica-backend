@@ -79,7 +79,8 @@ public sealed class Work : Entity
         MoveTo(WorkStatus.Submitted, actorId, now);
     }
 
-    public void Withdraw(Guid actorId, DateTime now)
+    /// <param name="deadline">A submitted work can only be taken back to draft (to replace it) until this date.</param>
+    public void Withdraw(Guid actorId, DateTime now, DateTime? deadline = null)
     {
         switch (Status)
         {
@@ -88,6 +89,7 @@ public sealed class Work : Entity
                 MoveTo(WorkStatus.Cancelled, actorId, now);
                 break;
             case WorkStatus.Submitted: // nobody has opened it yet
+                EnsureBeforeDeadline(now, deadline);
                 CurrentQueueItem()?.Withdraw();
                 MoveTo(WorkStatus.Draft, actorId, now, "Withdrawn before review.");
                 break;
