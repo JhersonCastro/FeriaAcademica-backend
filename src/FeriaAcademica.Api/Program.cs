@@ -1,6 +1,7 @@
 using FeriaAcademica.Application;
 using FeriaAcademica.Domain.Common;
 using FeriaAcademica.Infrastructure;
+using FeriaAcademica.Infrastructure.Identity;
 using FeriaAcademica.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -29,7 +30,9 @@ builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
         o.Events.OnRedirectToAccessDenied = ctx => { ctx.Response.StatusCode = StatusCodes.Status403Forbidden; return Task.CompletedTask; };
     }));
 
-builder.Services.AddAuthorization();
+// The super admin is the only global role; every other role belongs to an event.
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(AppClaims.SuperAdminPolicy, p => p.RequireAuthenticatedUser().RequireClaim(AppClaims.SuperAdmin, "true"));
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p.WithOrigins("http://localhost:4200").AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
 
 var app = builder.Build();
@@ -51,10 +54,16 @@ if (app.Environment.IsDevelopment())
     using var scope = app.Services.CreateScope();
     scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
 }
+else
+{
+    app.UseHsts();
+}
+
+await app.Services.SeedSuperAdminAsync(config);
 
 app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-app.Run();
+await app.RunAsync();
