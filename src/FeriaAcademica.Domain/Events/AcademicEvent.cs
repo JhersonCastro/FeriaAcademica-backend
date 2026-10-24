@@ -66,4 +66,11 @@ public sealed class AcademicEvent : Entity
         if (_stages.All(s => s.Status == StageStatus.Disabled)) throw new DomainException("At least one stage must be active.");
         Status = EventStatus.Published;
     }
+
+    /// <summary>People can register and attendance can be taken only while the event is published or in progress.</summary>
+    public void EnsureIsLive()
+    {
+        if (Status is not (EventStatus.Published or EventStatus.InProgress))
+            throw new DomainException($"An event in state {Status} does not accept registrations or attendance.");
+    }
 }
