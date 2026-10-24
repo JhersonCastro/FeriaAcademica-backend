@@ -1,12 +1,17 @@
+using FeriaAcademica.Application.Features.Attendance.Queries.GetAttendanceSummary;
 using FeriaAcademica.Application.Features.Events.Queries.ListEvents;
 using FeriaAcademica.Application.Features.Invitations.Queries.GetInvitation;
+using FeriaAcademica.Application.Features.Registrations;
+using FeriaAcademica.Application.Features.Registrations.Queries.GetMyRegistration;
 using FeriaAcademica.Application.Features.Users.Queries.GetUser;
 using FeriaAcademica.Application.Features.Users.Queries.ListUsers;
 using FeriaAcademica.Application.Features.Works.Queries.GetWork;
 using FeriaAcademica.Application.Features.Works.Queries.ListMyWorks;
 using FeriaAcademica.Domain.Events;
+using FeriaAcademica.Domain.Registrations;
 using FeriaAcademica.Domain.Works;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace FeriaAcademica.Infrastructure.Persistence;
 
@@ -102,6 +107,68 @@ internal sealed class UserReadModel(AppDbContext db) : IUserReadModel, IUserList
         var items = rows.Select(u => new UserSummaryDto(u.Id, u.Email!, u.FullName, u.IsSuperAdmin, u.Status.ToString(),
             u.Roles.Select(r => r.ToString()).Order().ToList())).ToList();
         return new PagedResult<UserSummaryDto>(items, page, pageSize, total);
+    }
+}
+
+internal sealed class RegistrationRepository(AppDbContext db) : IRegistrationRepository
+{
+    public Task<Registration?> GetAsync(Guid eventId, Guid userId, CancellationToken ct) =>
+        db.Registrations.FirstOrDefaultAsync(r => r.EventId == eventId && r.UserId == userId, ct);
+
+    // The QR token has a unique index, so this is a single index lookup: the scan answers well under the 2 seconds the backlog asks for.
+    public Task<Registration?> GetByQrTokenAsync(string qrToken, CancellationToken ct) =>
+        db.Registrations.FirstOrDefaultAsync(r => r.QrToken == qrToken, ct);
+
+    public async Task AddAsync(Registration registration, CancellationToken ct) => await db.Registrations.AddAsync(registration, ct);
+}
+
+internal sealed class AttendanceRepository(AppDbContext db) : IAttendanceRepository
+{
+    public Task<Attendance?> GetByRegistrationAsync(Guid registrationId, CancellationToken ct) =>
+        db.Attendances.AsNoTracking().FirstOrDefaultAsync(a => a.RegistrationId == registrationId, ct);
+
+    public async Task<bool> TryAddAsync(Attendance attendance, CancellationToken ct)
+    {
+        await db.Attendances.AddAsync(attendance, ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            return true;
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            // The unique index on RegistrationId let another scan win the race.
+            db.Entry(attendance).State = EntityState.Detached;
+            return false;
+        }
+    }
+}
+
+internal sealed class RegistrationReadModel(AppDbContext db) : IRegistrationReadModel
+{
+    public async Task<RegistrationDto?> GetAsync(Guid eventId, Guid userId, CancellationToken ct)
+    {
+        var r = await db.Registrations.AsNoTracking().Where(x => x.EventId == eventId && x.UserId == userId)
+            .Select(x => new
+            {
+                x.Id, x.EventId, x.QrToken, x.Status,
+                EnteredAt = db.Attendances.Where(a => a.RegistrationId == x.Id).Select(a => (DateTime?)a.At).FirstOrDefault(),
+            })
+            .FirstOrDefaultAsync(ct);
+        return r is null ? null : new RegistrationDto(r.Id, r.EventId, r.QrToken, r.Status.ToString(), r.EnteredAt);
+    }
+}
+
+internal sealed class AttendanceReadModel(AppDbContext db) : IAttendanceReadModel
+{
+    public async Task<AttendanceSummaryDto> GetSummaryAsync(Guid eventId, CancellationToken ct)
+    {
+        var active = db.Registrations.AsNoTracking().Where(r => r.EventId == eventId && r.Status == RegistrationStatus.Registered);
+        var registered = await active.CountAsync(ct);
+        var entries = db.Attendances.AsNoTracking().Where(a => active.Any(r => r.Id == a.RegistrationId));
+        var entered = await entries.CountAsync(ct);
+        var last = await entries.MaxAsync(a => (DateTime?)a.At, ct);
+        return new AttendanceSummaryDto(eventId, registered, entered, registered - entered, last);
     }
 }
 

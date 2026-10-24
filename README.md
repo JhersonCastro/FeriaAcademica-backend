@@ -80,6 +80,29 @@ Rutas del frontend que usan los correos: `/account/set-password?userId=&token=`,
 
 Ambos scripts dan el mismo menú: iniciar/parar el servicio, listar tablas, abrir `psql`, copiar el connection string, actualizar `dotnet user-secrets`, reiniciar la base e instalar PostgreSQL.
 
+## Asistencia con código QR
+
+El backend genera el QR de cada inscrito y registra la asistencia; el frontend dibuja el QR y usa la cámara.
+
+1. La persona se inscribe (`POST /api/events/{id}/registrations`). La respuesta trae `qrToken`: **ese texto es exactamente lo que debe llevar el QR** (el frontend lo dibuja). Es único por persona y por evento, y no se puede adivinar. Inscribirse de nuevo devuelve el mismo QR.
+2. En la puerta, el coordinador (o un profesor) del evento, o el súper admin, escanea el QR con la cámara y manda el texto leído a `POST /api/events/{id}/attendance/scan` con `{ "qrToken": "..." }`.
+3. La respuesta siempre es clara para la pantalla de la puerta:
+
+| `outcome` | Significa |
+| --- | --- |
+| `Valid` | Primera lectura: la asistencia quedó registrada (con fecha, hora y quién validó). |
+| `AlreadyEntered` | Esa persona ya había ingresado: no se duplica y se devuelve la hora del primer ingreso. |
+| `Invalid` | El QR no existe, es de otro evento o la inscripción fue cancelada. |
+
+La respuesta incluye `attendeeName` y `enteredAt` para mostrar quién es. Dos lectores escaneando el mismo QR a la vez producen una sola asistencia (índice único en la base). Solo se inscribe y se toma asistencia mientras el evento está publicado o en curso.
+
+| Método y ruta | Quién | Para |
+| --- | --- | --- |
+| `POST /api/events/{id}/registrations` | Con sesión | Inscribirse y obtener el QR. |
+| `GET /api/events/{id}/registrations/me` | Con sesión | Mi inscripción: `qrToken` y si ya ingresé (`enteredAt`). |
+| `POST /api/events/{id}/attendance/scan` | Súper admin, coordinador o profesor del evento | Registrar asistencia con el QR leído. |
+| `GET /api/events/{id}/attendance/summary` | Súper admin, coordinador o profesor del evento | `registered`, `entered`, `pending` y `lastEntryAt`; el frontend lo consulta cada pocos segundos para ver la afluencia. Las inscripciones canceladas no cuentan. |
+
 ## Estructura
 
 ```
