@@ -25,7 +25,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FeriaAcademica.Domain.Evaluation.Criterion", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("InstrumentId")
@@ -65,7 +64,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FeriaAcademica.Domain.Evaluation.Instrument", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("EventId")
@@ -102,7 +100,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FeriaAcademica.Domain.Evaluation.Response", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("At")
@@ -163,7 +160,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FeriaAcademica.Domain.Events.AcademicEvent", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<double>("AttendeeWeight")
@@ -228,7 +224,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FeriaAcademica.Domain.Events.EventStage", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTime?>("EndDate")
@@ -261,7 +256,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FeriaAcademica.Domain.Events.EventTemplate", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<string>("ConfigJson")
@@ -294,7 +288,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FeriaAcademica.Domain.Events.Invitation", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<string>("Email")
@@ -351,7 +344,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FeriaAcademica.Domain.Events.Participation", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("EventId")
@@ -378,7 +370,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FeriaAcademica.Domain.Events.RoleAssignment", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("EventId")
@@ -405,7 +396,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FeriaAcademica.Domain.Institutions.Institution", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<string>("Acronym")
@@ -431,7 +421,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FeriaAcademica.Domain.Institutions.InstitutionMembership", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<bool>("CanCreateEvents")
@@ -464,7 +453,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FeriaAcademica.Domain.Notifications.Notification", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
@@ -500,7 +488,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FeriaAcademica.Domain.Privacy.Consent", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<bool>("Accepted")
@@ -528,7 +515,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FeriaAcademica.Domain.Privacy.DataPolicy", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("EffectiveFrom")
@@ -554,7 +540,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FeriaAcademica.Domain.Registrations.Attendance", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("At")
@@ -579,7 +564,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FeriaAcademica.Domain.Registrations.Certificate", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<string>("Code")
@@ -624,7 +608,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FeriaAcademica.Domain.Registrations.Registration", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("EventId")
@@ -659,7 +642,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FeriaAcademica.Domain.Works.Artifact", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<string>("FileUrl")
@@ -696,7 +678,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FeriaAcademica.Domain.Works.JuryAssignment", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("JuryId")
@@ -718,7 +699,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FeriaAcademica.Domain.Works.ReviewQueueItem", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<int>("Attempt")
@@ -759,7 +739,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FeriaAcademica.Domain.Works.Work", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTime?>("ClosedAt")
@@ -826,7 +805,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FeriaAcademica.Domain.Works.WorkHistoryEntry", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<Guid?>("ActorId")
