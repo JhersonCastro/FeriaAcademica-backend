@@ -56,6 +56,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
         // The schema declares no cascading deletes: nothing is removed implicitly.
         foreach (var fk in b.Model.GetEntityTypes().Where(t => t.ClrType.Namespace?.StartsWith("FeriaAcademica.Domain") == true).SelectMany(t => t.GetForeignKeys()))
             fk.DeleteBehavior = DeleteBehavior.Restrict;
+
+        // Entities create their own Id, so a child added to a loaded aggregate (a stage, an artifact) must be inserted, not updated.
+        foreach (var t in b.Model.GetEntityTypes().Where(t => typeof(Entity).IsAssignableFrom(t.ClrType)))
+            b.Entity(t.ClrType).Property(nameof(Entity.Id)).ValueGeneratedNever();
     }
 
     Task<int> IUnitOfWork.SaveChangesAsync(CancellationToken ct) => SaveChangesAsync(ct);
