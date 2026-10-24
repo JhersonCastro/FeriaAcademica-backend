@@ -1,4 +1,7 @@
 using FeriaAcademica.Application.Features.Events.Queries.ListEvents;
+using FeriaAcademica.Application.Features.Invitations.Queries.GetInvitation;
+using FeriaAcademica.Application.Features.Users.Queries.GetUser;
+using FeriaAcademica.Application.Features.Users.Queries.ListUsers;
 using FeriaAcademica.Application.Features.Works.Queries.GetWork;
 using FeriaAcademica.Application.Features.Works.Queries.ListMyWorks;
 using FeriaAcademica.Domain.Events;
@@ -24,6 +27,82 @@ internal sealed class EventReadModel(AppDbContext db) : IEventReadModel
         await db.Events.AsNoTracking().OrderBy(e => e.StartDate).ThenBy(e => e.Name)
             .Select(e => new EventDto(e.Id, e.InstitutionId, e.Name, e.Status.ToString(), e.StartDate, e.EndDate))
             .ToListAsync(ct);
+}
+
+internal sealed class RoleAssignmentRepository(AppDbContext db) : IRoleAssignmentRepository
+{
+    public async Task<IReadOnlyList<EventRole>> GetRolesAsync(Guid userId, Guid eventId, CancellationToken ct) =>
+        await db.RoleAssignments.Where(r => r.UserId == userId && r.EventId == eventId).Select(r => r.Role).ToListAsync(ct);
+
+    public async Task AddAsync(RoleAssignment assignment, CancellationToken ct) => await db.RoleAssignments.AddAsync(assignment, ct);
+}
+
+internal sealed class InvitationRepository(AppDbContext db) : IInvitationRepository
+{
+    public Task<Invitation?> GetByTokenAsync(string token, CancellationToken ct) => db.Invitations.FirstOrDefaultAsync(i => i.Token == token, ct);
+    public async Task AddAsync(Invitation invitation, CancellationToken ct) => await db.Invitations.AddAsync(invitation, ct);
+}
+
+internal sealed class InvitationReadModel(AppDbContext db) : IInvitationReadModel
+{
+    public async Task<InvitationDto?> GetByTokenAsync(string token, DateTime now, CancellationToken ct)
+    {
+        var i = await db.Invitations.AsNoTracking().Where(x => x.Token == token)
+            .Join(db.Events, x => x.EventId, e => e.Id, (x, e) => new
+            {
+                x.EventId, EventName = e.Name, x.Email, x.Role, x.Status, x.ExpiresAt,
+                HasAccount = db.Users.Any(u => u.NormalizedEmail == x.Email.ToUpper()),
+            })
+            .FirstOrDefaultAsync(ct);
+        if (i is null) return null;
+
+        var status = i.Status == InvitationStatus.Pending && now >= i.ExpiresAt ? InvitationStatus.Expired : i.Status;
+        return new InvitationDto(i.EventId, i.EventName, i.Email, i.Role.ToString(), status.ToString(), i.ExpiresAt, i.HasAccount);
+    }
+}
+
+internal sealed class UserReadModel(AppDbContext db) : IUserReadModel, IUserListReadModel
+{
+    public async Task<UserDto?> GetAsync(Guid id, CancellationToken ct)
+    {
+        var u = await db.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (u is null) return null;
+
+        var roles = await db.RoleAssignments.AsNoTracking().Where(r => r.UserId == id)
+            .Join(db.Events, r => r.EventId, e => e.Id, (r, e) => new { r.EventId, e.Name, r.Role })
+            .OrderBy(x => x.Name)
+            .ToListAsync(ct);
+
+        return new UserDto(u.Id, u.Email!, u.FullName, u.PhoneNumber, u.BirthDate, u.GuardianName, u.GuardianEmail, u.IsSuperAdmin,
+            u.Status.ToString(), u.CreatedAt, roles.Select(r => new EventRoleDto(r.EventId, r.Name, r.Role.ToString())).ToList());
+    }
+
+    public async Task<PagedResult<UserSummaryDto>> ListAsync(UserFilter filter, int page, int pageSize, CancellationToken ct)
+    {
+        var query = db.Users.AsNoTracking();
+        if (filter.Search is { } search)
+        {
+            var pattern = "%" + search.Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_") + "%";
+            query = query.Where(u => EF.Functions.ILike(u.FullName, pattern) || EF.Functions.ILike(u.Email!, pattern));
+        }
+        if (filter.SuperAdminsOnly) query = query.Where(u => u.IsSuperAdmin);
+        if (filter.Role is { } role) query = query.Where(u => db.RoleAssignments.Any(r => r.UserId == u.Id && r.Role == role));
+        if (filter.Status is { } status) query = query.Where(u => u.Status == status);
+
+        var total = await query.CountAsync(ct);
+        var rows = await query.OrderBy(u => u.FullName).ThenBy(u => u.Email)
+            .Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(u => new
+            {
+                u.Id, u.Email, u.FullName, u.IsSuperAdmin, u.Status,
+                Roles = db.RoleAssignments.Where(r => r.UserId == u.Id).Select(r => r.Role).Distinct().ToList(),
+            })
+            .ToListAsync(ct);
+
+        var items = rows.Select(u => new UserSummaryDto(u.Id, u.Email!, u.FullName, u.IsSuperAdmin, u.Status.ToString(),
+            u.Roles.Select(r => r.ToString()).Order().ToList())).ToList();
+        return new PagedResult<UserSummaryDto>(items, page, pageSize, total);
+    }
 }
 
 internal sealed class WorkRepository(AppDbContext db) : IWorkRepository

@@ -20,6 +20,59 @@ dotnet run --project src/FeriaAcademica.Api
 
 En `Development` la API aplica las migraciones pendientes al arrancar.
 
+### Primer súper admin
+
+Al arrancar, si no existe ningún súper admin, la API lo crea con estos datos (van en user-secrets, nunca en `appsettings`):
+
+```bash
+dotnet user-secrets set "SuperAdmin:Email" "admin@tu-dominio.edu.co" --project src/FeriaAcademica.Api
+dotnet user-secrets set "SuperAdmin:Password" "UnaClaveSegura1!" --project src/FeriaAcademica.Api
+dotnet user-secrets set "SuperAdmin:FullName" "Administración" --project src/FeriaAcademica.Api   # opcional
+```
+
+### Correo (SMTP)
+
+Los enlaces para definir o recuperar la contraseña y las invitaciones se envían por correo. Mientras no haya SMTP configurado, en `Development` el correo completo (con el enlace) se escribe en la consola de la API; en otros entornos solo se registra que no se pudo enviar.
+
+```bash
+dotnet user-secrets set "Smtp:Host" "smtp.gmail.com" --project src/FeriaAcademica.Api
+dotnet user-secrets set "Smtp:Port" "587" --project src/FeriaAcademica.Api
+dotnet user-secrets set "Smtp:User" "cuenta@gmail.com" --project src/FeriaAcademica.Api
+dotnet user-secrets set "Smtp:Password" "contraseña-de-aplicación" --project src/FeriaAcademica.Api
+dotnet user-secrets set "Smtp:From" "cuenta@gmail.com" --project src/FeriaAcademica.Api   # opcional, por defecto Smtp:User
+```
+
+Los enlaces apuntan a `Frontend:BaseUrl` (`appsettings.json`, por defecto `http://localhost:4200`).
+
+## Usuarios y roles
+
+- **Súper admin** (el administrador): único rol global. Crea usuarios, los edita, los activa o desactiva, crea eventos y asigna roles.
+- **Roles por evento**: coordinador (`Coordinator`), profesor (`Teacher`), jurado (`Jury`), estudiante (`Participant`) y público (`Attendee`). Una persona puede tener varios roles en un mismo evento y roles distintos en eventos distintos; no quedan en el usuario.
+- **Estados de la cuenta**: `Pending` (creada, sin contraseña), `Active` e `Inactive` (no puede iniciar sesión y sus sesiones abiertas se cierran en menos de un minuto).
+
+Las cuentas nacen de dos formas:
+
+1. El súper admin la crea (`POST /api/users`) y la persona recibe un enlace para definir su contraseña.
+2. Un profesor de un evento invita por correo a un estudiante o a un invitado (`POST /api/events/{id}/invitations`). Si la persona ya tiene cuenta, acepta con su sesión iniciada; si no, crea la cuenta al aceptar.
+
+### Endpoints
+
+| Método y ruta | Quién | Para |
+| --- | --- | --- |
+| `POST /api/auth/login` · `POST /api/auth/logout` | Todos | Sesión con cookie. Tras 5 intentos fallidos la cuenta se bloquea 15 minutos. |
+| `GET /api/auth/me` | Con sesión | Datos del usuario, si es súper admin y sus roles por evento (para armar el menú). |
+| `POST /api/auth/forgot-password` | Todos | Envía el enlace de recuperación. Responde igual exista o no el correo. |
+| `POST /api/auth/reset-password` | Todos | Define la contraseña con el enlace (recuperación o primera contraseña). |
+| `PUT /api/users/me` | Con sesión | Editar mis datos personales. |
+| `GET /api/users?search=&role=&status=&page=&pageSize=` | Súper admin | Listado paginado; busca por nombre o correo y filtra por rol o estado. |
+| `GET /api/users/{id}` · `POST /api/users` · `PUT /api/users/{id}` | Súper admin | Ver, crear y editar usuarios. |
+| `POST /api/users/{id}/activate` · `POST /api/users/{id}/deactivate` | Súper admin | Cambiar el estado. |
+| `POST /api/events/{id}/roles` | Súper admin | Dar un rol a un usuario en un evento. |
+| `POST /api/events/{id}/invitations` | Profesor del evento | Invitar a un estudiante (`Participant`) o invitado (`Attendee`). |
+| `GET /api/invitations/{token}` · `POST /api/invitations/{token}/accept` | Todos | Ver y aceptar una invitación. |
+
+Rutas del frontend que usan los correos: `/account/set-password?userId=&token=`, `/account/reset-password?userId=&token=` e `/invitations/{token}`.
+
 ### PostgreSQL local sin Docker
 
 - **Windows:** doble clic en `scripts/windows/feria-db.cmd`. Detecta si PostgreSQL está instalado (si no, ofrece instalarlo con `winget`).

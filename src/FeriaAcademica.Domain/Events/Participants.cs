@@ -16,10 +16,20 @@ public sealed class RoleAssignment : Entity
 
     public static RoleAssignment Create(Guid userId, Guid eventId, EventRole role) =>
         new() { UserId = userId, EventId = eventId, Role = role };
+
+    /// <summary>Roles belong to an event, not to the user: the same person can hold several roles, but each one only once per event.</summary>
+    public static RoleAssignment Assign(Guid userId, Guid eventId, EventRole role, IReadOnlyCollection<EventRole> currentRoles)
+    {
+        if (currentRoles.Contains(role)) throw new DomainException($"The user already has the {role} role in this event.");
+        return Create(userId, eventId, role);
+    }
 }
 
 public sealed class Invitation : Entity
 {
+    public static readonly TimeSpan Lifetime = TimeSpan.FromDays(7);
+    private static readonly EventRole[] RolesATeacherCanInvite = [EventRole.Participant, EventRole.Attendee];
+
     public Guid EventId { get; private set; }
     public string Email { get; private set; } = default!;
     public EventRole Role { get; private set; }
@@ -38,6 +48,30 @@ public sealed class Invitation : Entity
         if (string.IsNullOrWhiteSpace(email)) throw new DomainException("Email is required.");
         if (string.IsNullOrWhiteSpace(token)) throw new DomainException("Token is required.");
         return new Invitation { EventId = eventId, Email = email.Trim(), Role = role, Origin = origin, SenderId = senderId, Token = token, ExpiresAt = expiresAt };
+    }
+
+    /// <summary>A teacher of the event invites a student (participant) or a guest (attendee), who may or may not have an account yet.</summary>
+    public static Invitation Send(Guid eventId, string email, EventRole role, Guid senderId, IReadOnlyCollection<EventRole> senderRoles, string token, DateTime now)
+    {
+        if (!senderRoles.Contains(EventRole.Teacher)) throw new DomainException("Only a teacher of the event can send invitations.");
+        if (!RolesATeacherCanInvite.Contains(role)) throw new DomainException("A teacher can only invite students (participants) or guests (attendees).");
+        return Create(eventId, email, role, InvitationOrigin.Invitation, senderId, token, now + Lifetime);
+    }
+
+    public void EnsureCanBeAcceptedBy(string email, DateTime now)
+    {
+        if (Status != InvitationStatus.Pending) throw new DomainException($"This invitation is no longer pending ({Status}).");
+        if (now >= ExpiresAt) throw new DomainException("This invitation has expired.");
+        if (!string.Equals(Email, email.Trim(), StringComparison.OrdinalIgnoreCase)) throw new DomainException("This invitation was sent to a different email.");
+    }
+
+    /// <summary>Accepting gives the invited user the invitation's role in the event.</summary>
+    public RoleAssignment Accept(Guid userId, string email, DateTime now)
+    {
+        EnsureCanBeAcceptedBy(email, now);
+        UserId = userId;
+        Status = InvitationStatus.Accepted;
+        return RoleAssignment.Create(userId, EventId, Role);
     }
 }
 
