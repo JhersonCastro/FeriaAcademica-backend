@@ -1,3 +1,4 @@
+using FeriaAcademica.Application.Features.Users.Queries.GetUser;
 using Mediator;
 
 namespace FeriaAcademica.Application.Features.Auth.Commands.SignIn;

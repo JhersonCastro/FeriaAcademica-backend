@@ -30,8 +30,11 @@ public sealed class Work : Entity
 
     private Work() { } // EF Core
 
-    public static Work Create(Guid participationId, Guid professorId, string title, string? summary, int maxRejections, Guid authorId, DateTime now)
+    /// <param name="deadline">End of the event's reception stage; no new works can be created after it.</param>
+    public static Work Create(Guid participationId, Guid professorId, string title, string? summary, int maxRejections, Guid authorId, DateTime now,
+        DateTime? deadline = null)
     {
+        EnsureBeforeDeadline(now, deadline);
         if (string.IsNullOrWhiteSpace(title)) throw new DomainException("Title is required.");
         if (maxRejections < 1) throw new DomainException("Max rejections must be at least one.");
 
@@ -43,18 +46,30 @@ public sealed class Work : Entity
         return work;
     }
 
-    public Artifact AddArtifact(ArtifactType type, string? fileUrl, string? linkUrl, DateTime now)
+    /// <summary>Adds an uploaded file, which must have an allowed format and size (see <see cref="ArtifactFileRules"/>).</summary>
+    public Artifact AddFile(ArtifactType type, string fileUrl, string fileName, long sizeBytes, DateTime now, DateTime? deadline = null)
+    {
+        ArtifactFileRules.Validate(fileName, sizeBytes);
+        return AddArtifact(type, fileUrl, null, now, deadline);
+    }
+
+    /// <summary>Adds a new version of an artifact; earlier versions are kept, so this is also how one is replaced.</summary>
+    public Artifact AddArtifact(ArtifactType type, string? fileUrl, string? linkUrl, DateTime now, DateTime? deadline = null)
     {
         if (Status != WorkStatus.Draft) throw new DomainException("A work can only be edited while it is a draft.");
+        EnsureBeforeDeadline(now, deadline);
+        if (!string.IsNullOrWhiteSpace(linkUrl)) ArtifactLinkRules.Validate(linkUrl);
         var version = _artifacts.Where(a => a.Type == type).Select(a => a.Version).DefaultIfEmpty(0).Max() + 1;
         var artifact = new Artifact(Id, type, version, fileUrl, linkUrl, now);
         _artifacts.Add(artifact);
         return artifact;
     }
 
-    public void Submit(Guid actorId, DateTime now)
+    /// <param name="deadline">End of the event's reception stage; null when the event has not set one.</param>
+    public void Submit(Guid actorId, DateTime now, DateTime? deadline = null)
     {
         if (Status != WorkStatus.Draft) throw new DomainException("Only a draft can be submitted.");
+        EnsureBeforeDeadline(now, deadline);
         if (_artifacts.Count == 0) throw new DomainException("A work needs at least one artifact to be submitted.");
 
         var item = CurrentQueueItem();
@@ -65,7 +80,8 @@ public sealed class Work : Entity
         MoveTo(WorkStatus.Submitted, actorId, now);
     }
 
-    public void Withdraw(Guid actorId, DateTime now)
+    /// <param name="deadline">A submitted work can only be taken back to draft (to replace it) until this date.</param>
+    public void Withdraw(Guid actorId, DateTime now, DateTime? deadline = null)
     {
         switch (Status)
         {
@@ -74,6 +90,7 @@ public sealed class Work : Entity
                 MoveTo(WorkStatus.Cancelled, actorId, now);
                 break;
             case WorkStatus.Submitted: // nobody has opened it yet
+                EnsureBeforeDeadline(now, deadline);
                 CurrentQueueItem()?.Withdraw();
                 MoveTo(WorkStatus.Draft, actorId, now, "Withdrawn before review.");
                 break;
@@ -154,6 +171,11 @@ public sealed class Work : Entity
         Closure = null;
         ClosureReason = null;
         ClosedAt = null;
+    }
+
+    private static void EnsureBeforeDeadline(DateTime now, DateTime? deadline)
+    {
+        if (now > deadline) throw new DomainException($"The call is closed: the submission deadline was {deadline:yyyy-MM-dd HH:mm} UTC.");
     }
 
     private ReviewQueueItem? CurrentQueueItem() => _reviewQueue.FirstOrDefault(q => q.Attempt == CurrentAttempt);
