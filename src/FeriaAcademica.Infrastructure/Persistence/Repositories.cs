@@ -30,7 +30,13 @@ internal sealed class EventReadModel(AppDbContext db) : IEventReadModel
 {
     public async Task<IReadOnlyList<EventDto>> ListAsync(CancellationToken ct) =>
         await db.Events.AsNoTracking().OrderBy(e => e.StartDate).ThenBy(e => e.Name)
-            .Select(e => new EventDto(e.Id, e.InstitutionId, e.Name, e.Status.ToString(), e.StartDate, e.EndDate))
+            .Select(e => new
+            {
+                e.Id, e.InstitutionId, e.Name, e.Status, e.StartDate, e.EndDate, e.Capacity,
+                Registered = db.Registrations.Count(r => r.EventId == e.Id && r.Status == RegistrationStatus.Registered),
+            })
+            .Select(e => new EventDto(e.Id, e.InstitutionId, e.Name, e.Status.ToString(), e.StartDate, e.EndDate,
+                e.Capacity, e.Registered, e.Capacity == null ? null : Math.Max(0, e.Capacity.Value - e.Registered)))
             .ToListAsync(ct);
 }
 
@@ -119,6 +125,9 @@ internal sealed class RegistrationRepository(AppDbContext db) : IRegistrationRep
     public Task<Registration?> GetByQrTokenAsync(string qrToken, CancellationToken ct) =>
         db.Registrations.FirstOrDefaultAsync(r => r.QrToken == qrToken, ct);
 
+    public Task<int> CountActiveAsync(Guid eventId, CancellationToken ct) =>
+        db.Registrations.CountAsync(r => r.EventId == eventId && r.Status == RegistrationStatus.Registered, ct);
+
     public async Task AddAsync(Registration registration, CancellationToken ct) => await db.Registrations.AddAsync(registration, ct);
 }
 
@@ -152,10 +161,11 @@ internal sealed class RegistrationReadModel(AppDbContext db) : IRegistrationRead
             .Select(x => new
             {
                 x.Id, x.EventId, x.QrToken, x.Status,
+                User = db.Users.Where(u => u.Id == x.UserId).Select(u => new { u.FullName, u.Email }).First(),
                 EnteredAt = db.Attendances.Where(a => a.RegistrationId == x.Id).Select(a => (DateTime?)a.At).FirstOrDefault(),
             })
             .FirstOrDefaultAsync(ct);
-        return r is null ? null : new RegistrationDto(r.Id, r.EventId, r.QrToken, r.Status.ToString(), r.EnteredAt);
+        return r is null ? null : new RegistrationDto(r.Id, r.EventId, r.QrToken, r.Status.ToString(), r.EnteredAt, r.User.FullName, r.User.Email!);
     }
 }
 
