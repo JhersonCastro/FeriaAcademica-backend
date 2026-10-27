@@ -25,6 +25,7 @@ internal sealed class AcademicEventConfiguration : IEntityTypeConfiguration<Acad
         b.ToTable("Events", t =>
         {
             t.HasCheckConstraint("CK_Events_MaxRejections", "\"MaxRejections\" >= 1");
+            t.HasCheckConstraint("CK_Events_Capacity", "\"Capacity\" IS NULL OR \"Capacity\" >= 1");
             t.HasCheckConstraint("CK_Events_Weights", "ABS(\"JuryWeight\" + \"AttendeeWeight\" - 1.0) < 1e-9");
             t.HasCheckConstraint("CK_Events_CancellationReason", "\"Status\" <> 'Cancelled' OR \"CancellationReason\" IS NOT NULL");
         });
