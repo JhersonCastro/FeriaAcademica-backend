@@ -168,6 +168,9 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
                     b.Property<string>("CancellationReason")
                         .HasColumnType("text");
 
+                    b.Property<int?>("Capacity")
+                        .HasColumnType("integer");
+
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
@@ -214,6 +217,8 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
                     b.ToTable("Events", null, t =>
                         {
                             t.HasCheckConstraint("CK_Events_CancellationReason", "\"Status\" <> 'Cancelled' OR \"CancellationReason\" IS NOT NULL");
+
+                            t.HasCheckConstraint("CK_Events_Capacity", "\"Capacity\" IS NULL OR \"Capacity\" >= 1");
 
                             t.HasCheckConstraint("CK_Events_MaxRejections", "\"MaxRejections\" >= 1");
 

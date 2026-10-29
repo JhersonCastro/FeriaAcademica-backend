@@ -84,7 +84,7 @@ Ambos scripts dan el mismo menú: iniciar/parar el servicio, listar tablas, abri
 
 El backend genera el QR de cada inscrito y registra la asistencia; el frontend dibuja el QR y usa la cámara.
 
-1. La persona se inscribe (`POST /api/events/{id}/registrations`). La respuesta trae `qrToken`: **ese texto es exactamente lo que debe llevar el QR** (el frontend lo dibuja). Es único por persona y por evento, y no se puede adivinar. Inscribirse de nuevo devuelve el mismo QR.
+1. La persona se inscribe (`POST /api/events/{id}/registrations`). La respuesta trae `qrToken`: **ese texto es exactamente lo que debe llevar el QR** (el frontend lo dibuja). Es único por persona y por evento, y no se puede adivinar. Inscribirse de nuevo devuelve el mismo QR. La respuesta incluye también los datos básicos del perfil (`fullName`, `email`).
 2. En la puerta, el coordinador (o un profesor) del evento, o el súper admin, escanea el QR con la cámara y manda el texto leído a `POST /api/events/{id}/attendance/scan` con `{ "qrToken": "..." }`.
 3. La respuesta siempre es clara para la pantalla de la puerta:
 
@@ -95,6 +95,8 @@ El backend genera el QR de cada inscrito y registra la asistencia; el frontend d
 | `Invalid` | El QR no existe, es de otro evento o la inscripción fue cancelada. |
 
 La respuesta incluye `attendeeName` y `enteredAt` para mostrar quién es. Dos lectores escaneando el mismo QR a la vez producen una sola asistencia (índice único en la base). Solo se inscribe y se toma asistencia mientras el evento está publicado o en curso.
+
+**Cupos:** un evento puede tener `capacity` (opcional; sin valor es ilimitado). Si ya no quedan cupos, inscribirse responde 400 (`The event is full`). Solo las inscripciones no canceladas ocupan cupo. `GET /api/events` devuelve `capacity`, `registered` y `availableSeats`. El súper admin lo define al crear el evento o con `PUT /api/events/{id}/capacity` (`{ "capacity": 100 }`, `null` quita el límite; no puede ser menor que los inscritos actuales).
 
 | Método y ruta | Quién | Para |
 | --- | --- | --- |
