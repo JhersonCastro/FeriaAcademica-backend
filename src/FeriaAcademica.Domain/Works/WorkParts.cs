@@ -5,6 +5,7 @@ namespace FeriaAcademica.Domain.Works;
 public enum ArtifactType { Document, Poster, Presentation, Video, Code, Other }
 public enum QueueStatus { Pending, InReview, Resolved, Withdrawn }
 public enum ReviewResult { Admitted, Rejected, DefinitiveRejection }
+public enum ReviewDecision { Approved, ApprovedWithChanges, Rejected }
 
 public sealed class Artifact : Entity
 {

@@ -3,13 +3,16 @@ using FeriaAcademica.Application.Features.Auth;
 using FeriaAcademica.Application.Features.Attendance.Queries.GetAttendanceSummary;
 using FeriaAcademica.Application.Features.Events.Queries.ListEvents;
 using FeriaAcademica.Application.Features.Invitations.Queries.GetInvitation;
+using FeriaAcademica.Application.Features.Notifications.Queries.ListMyNotifications;
 using FeriaAcademica.Application.Features.Registrations.Queries.GetMyRegistration;
 using FeriaAcademica.Application.Features.Users;
 using FeriaAcademica.Application.Features.Users.Queries.GetUser;
 using FeriaAcademica.Application.Features.Users.Queries.ListUsers;
 using FeriaAcademica.Application.Features.Works.Queries.GetWork;
+using FeriaAcademica.Application.Features.Works.Queries.ListAssignedWorks;
 using FeriaAcademica.Application.Features.Works.Queries.ListMyWorks;
 using FeriaAcademica.Domain.Events;
+using FeriaAcademica.Domain.Notifications;
 using FeriaAcademica.Domain.Registrations;
 using FeriaAcademica.Domain.Works;
 using FeriaAcademica.Infrastructure.Auth;
@@ -45,7 +48,10 @@ public static class DependencyInjection
         s.AddScoped<IWorkRepository, WorkRepository>();
         s.AddScoped<IWorkReadModel, WorkReadModel>();
         s.AddScoped<IMyWorkReadModel, MyWorkReadModel>();
+        s.AddScoped<IAssignedWorkReadModel, AssignedWorkReadModel>();
         s.AddScoped<IParticipationRepository, ParticipationRepository>();
+        s.AddScoped<INotificationRepository, NotificationRepository>();
+        s.AddScoped<INotificationReadModel, NotificationReadModel>();
 
         s.AddIdentityCore<ApplicationUser>(o =>
             {

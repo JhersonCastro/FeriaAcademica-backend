@@ -109,11 +109,27 @@ public sealed class Work : Entity
         MoveTo(WorkStatus.InReview, reviewerId, now);
     }
 
-    public void Admit(Guid reviewerId, DateTime now)
+    /// <summary>Records the reviewer's decision: approved, approved with changes (back to draft to correct it) or rejected (closed).</summary>
+    public void Decide(Guid reviewerId, ReviewDecision decision, string? feedback, DateTime now)
+    {
+        if (decision is not ReviewDecision.Approved && string.IsNullOrWhiteSpace(feedback))
+            throw new DomainException("Feedback is required unless the work is approved.");
+
+        switch (decision)
+        {
+            case ReviewDecision.Approved: Admit(reviewerId, now, feedback); break;
+            case ReviewDecision.ApprovedWithChanges: Reject(reviewerId, feedback!, now); break;
+            case ReviewDecision.Rejected: RejectDefinitively(reviewerId, feedback!, now); break;
+            default: throw new DomainException($"Unknown review decision {decision}.");
+        }
+    }
+
+    public void Admit(Guid reviewerId, DateTime now, string? observations = null)
     {
         EnsureInReviewBy(reviewerId);
-        CurrentQueueItem()?.Resolve(ReviewResult.Admitted, null, now);
-        MoveTo(WorkStatus.Admitted, reviewerId, now);
+        observations = string.IsNullOrWhiteSpace(observations) ? null : observations;
+        CurrentQueueItem()?.Resolve(ReviewResult.Admitted, observations, now);
+        MoveTo(WorkStatus.Admitted, reviewerId, now, observations);
     }
 
     public void Reject(Guid reviewerId, string observations, DateTime now)
