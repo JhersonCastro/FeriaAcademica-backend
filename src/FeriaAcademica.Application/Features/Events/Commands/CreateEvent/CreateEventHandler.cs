@@ -8,7 +8,7 @@ internal sealed class CreateEventHandler(IAcademicEventRepository events, IUnitO
 {
     public async ValueTask<Guid> Handle(CreateEventCommand c, CancellationToken ct)
     {
-        var academicEvent = AcademicEvent.Create(c.InstitutionId, c.Name, c.CreatedBy);
+        var academicEvent = AcademicEvent.Create(c.InstitutionId, c.Name, c.CreatedBy, capacity: c.Capacity);
         await events.AddAsync(academicEvent, ct);
         await uow.SaveChangesAsync(ct);
         return academicEvent.Id;

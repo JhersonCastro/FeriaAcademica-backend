@@ -2,6 +2,7 @@ using FeriaAcademica.Application.Features.Events.Commands.AssignEventRole;
 using FeriaAcademica.Application.Features.Events.Commands.CreateEvent;
 using FeriaAcademica.Application.Features.Events.Commands.PublishEvent;
 using FeriaAcademica.Application.Features.Events.Commands.ScheduleEventStage;
+using FeriaAcademica.Application.Features.Events.Commands.SetEventCapacity;
 using FeriaAcademica.Application.Features.Events.Queries.ListEvents;
 using FeriaAcademica.Application.Features.Invitations.Commands.SendInvitation;
 using FeriaAcademica.Domain.Events;
@@ -15,7 +16,8 @@ namespace FeriaAcademica.Api.Controllers;
 [ApiController, Route("api/events"), Authorize]
 public class EventsController(IMediator mediator) : ControllerBase
 {
-    public sealed record CreateEventRequest(Guid InstitutionId, string Name);
+    public sealed record CreateEventRequest(Guid InstitutionId, string Name, int? Capacity = null);
+    public sealed record SetCapacityRequest(int? Capacity);
     public sealed record ScheduleStageRequest(DateTime StartDate, DateTime EndDate);
     public sealed record AssignRoleRequest(Guid UserId, string Role);
     public sealed record InviteRequest(string Email, string Role);
@@ -26,7 +28,7 @@ public class EventsController(IMediator mediator) : ControllerBase
     [HttpPost, Authorize(Policy = AppClaims.SuperAdminPolicy)]
     public async Task<IActionResult> Create(CreateEventRequest r, CancellationToken ct)
     {
-        var id = await mediator.Send(new CreateEventCommand(r.InstitutionId, r.Name, User.UserId()), ct);
+        var id = await mediator.Send(new CreateEventCommand(r.InstitutionId, r.Name, User.UserId(), r.Capacity), ct);
         return Created($"/api/events/{id}", new { id });
     }
 
@@ -34,6 +36,14 @@ public class EventsController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Publish(Guid id, CancellationToken ct)
     {
         await mediator.Send(new PublishEventCommand(id), ct);
+        return NoContent();
+    }
+
+    /// <summary>Sets the seats for registrations (null removes the limit); it cannot go below the people already registered.</summary>
+    [HttpPut("{id:guid}/capacity"), Authorize(Policy = AppClaims.SuperAdminPolicy)]
+    public async Task<IActionResult> SetCapacity(Guid id, SetCapacityRequest r, CancellationToken ct)
+    {
+        await mediator.Send(new SetEventCapacityCommand(id, r.Capacity), ct);
         return NoContent();
     }
 
