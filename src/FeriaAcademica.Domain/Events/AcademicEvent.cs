@@ -60,6 +60,13 @@ public sealed class AcademicEvent : Entity
         stage.Schedule(startDate, endDate);
     }
 
+    /// <summary>People can only join an event that has been published and has not finished.</summary>
+    public void EnsureAcceptsParticipants()
+    {
+        if (Status is not (EventStatus.Published or EventStatus.InProgress))
+            throw new DomainException($"An event in state {Status} does not accept participants.");
+    }
+
     public void Publish()
     {
         if (Status != EventStatus.Configuration) throw new DomainException($"An event in state {Status} cannot be published.");

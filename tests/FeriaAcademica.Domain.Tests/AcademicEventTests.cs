@@ -49,6 +49,22 @@ public class AcademicEventTests
     }
 
     [Fact]
+    public void A_published_event_accepts_participants()
+    {
+        var academicEvent = NewEvent();
+        academicEvent.AddStage(StageType.Reception, active: true);
+        academicEvent.Publish();
+
+        academicEvent.EnsureAcceptsParticipants();
+    }
+
+    [Fact]
+    public void An_event_still_in_configuration_does_not_accept_participants()
+    {
+        Assert.Throws<DomainException>(() => NewEvent().EnsureAcceptsParticipants());
+    }
+
+    [Fact]
     public void ScheduleStage_rejects_a_disabled_stage()
     {
         var academicEvent = NewEvent();
