@@ -11,21 +11,14 @@ internal sealed class AddArtifactHandler(IWorkRepository works, IParticipationRe
 {
     public async ValueTask<AddedArtifact> Handle(AddArtifactCommand c, CancellationToken ct)
     {
-        var isLink = !string.IsNullOrWhiteSpace(c.LinkUrl);
-        var isFile = !string.IsNullOrWhiteSpace(c.FileUrl);
-        if (isLink == isFile) throw new DomainException("Send either a link or a file.");
-        if (isFile && (string.IsNullOrWhiteSpace(c.FileName) || c.FileSizeBytes is null))
-            throw new DomainException("A file needs its name and size.");
+        if (string.IsNullOrWhiteSpace(c.LinkUrl)) throw new DomainException("A link is required.");
 
         var work = await works.GetAsync(c.WorkId, ct) ?? throw new DomainException("Work not found.");
         var participation = await participations.GetAsync(work.ParticipationId, ct) ?? throw new DomainException("Participation not found.");
         participation.EnsureOwnedBy(c.ActorId);
         var academicEvent = await events.GetAsync(participation.EventId, ct) ?? throw new DomainException("Event not found.");
 
-        var now = DateTime.UtcNow;
-        var artifact = isLink
-            ? work.AddArtifact(c.Type, null, c.LinkUrl!.Trim(), now, academicEvent.SubmissionDeadline)
-            : work.AddFile(c.Type, c.FileUrl!.Trim(), c.FileName!, c.FileSizeBytes!.Value, now, academicEvent.SubmissionDeadline);
+        var artifact = work.AddArtifact(c.Type, null, c.LinkUrl.Trim(), DateTime.UtcNow, academicEvent.SubmissionDeadline);
         await uow.SaveChangesAsync(ct);
         return new AddedArtifact(artifact.Id, artifact.Version);
     }

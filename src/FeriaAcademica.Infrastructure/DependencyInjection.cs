@@ -8,6 +8,7 @@ using FeriaAcademica.Domain.Works;
 using FeriaAcademica.Infrastructure.Auth;
 using FeriaAcademica.Infrastructure.Identity;
 using FeriaAcademica.Infrastructure.Persistence;
+using FeriaAcademica.Infrastructure.Storage;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -27,6 +28,9 @@ public static class DependencyInjection
         s.AddScoped<IWorkReadModel, WorkReadModel>();
         s.AddScoped<IMyWorkReadModel, MyWorkReadModel>();
         s.AddScoped<IParticipationRepository, ParticipationRepository>();
+        s.AddScoped<IRoleAssignmentRepository, RoleAssignmentRepository>();
+        s.AddScoped<IInvitationRepository, InvitationRepository>();
+        s.AddSingleton<IFileStorage, LocalFileStorage>();
 
         s.AddIdentityCore<ApplicationUser>(o => { o.User.RequireUniqueEmail = true; o.Password.RequiredLength = 8; })
          .AddEntityFrameworkStores<AppDbContext>()

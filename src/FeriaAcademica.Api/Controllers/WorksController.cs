@@ -2,6 +2,7 @@ using System.Security.Claims;
 using FeriaAcademica.Application.Features.Works.Commands.AddArtifact;
 using FeriaAcademica.Application.Features.Works.Commands.CreateWork;
 using FeriaAcademica.Application.Features.Works.Commands.SubmitWork;
+using FeriaAcademica.Application.Features.Works.Commands.UploadArtifactFile;
 using FeriaAcademica.Application.Features.Works.Commands.WithdrawWork;
 using FeriaAcademica.Application.Features.Works.Queries.GetWork;
 using FeriaAcademica.Application.Features.Works.Queries.ListMyWorks;
@@ -16,9 +17,8 @@ namespace FeriaAcademica.Api.Controllers;
 [ApiController, Route("api/works"), Authorize]
 public class WorksController(IMediator mediator) : ControllerBase
 {
-    public sealed record CreateWorkRequest(Guid ParticipationId, Guid ProfessorId, string Title, string? Summary);
-    /// <summary>Send a <c>LinkUrl</c>, or a <c>FileUrl</c> with the original <c>FileName</c> and <c>FileSizeBytes</c>.</summary>
-    public sealed record AddArtifactRequest(ArtifactType Type, string? LinkUrl, string? FileUrl, string? FileName, long? FileSizeBytes);
+    public sealed record CreateWorkRequest(Guid ParticipationId, string Title, string? Summary);
+    public sealed record AddArtifactRequest(ArtifactType Type, string LinkUrl);
 
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -34,14 +34,24 @@ public class WorksController(IMediator mediator) : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(CreateWorkRequest r, CancellationToken ct)
     {
-        var id = await mediator.Send(new CreateWorkCommand(r.ParticipationId, r.ProfessorId, r.Title, r.Summary, UserId), ct);
+        var id = await mediator.Send(new CreateWorkCommand(r.ParticipationId, r.Title, r.Summary, UserId), ct);
         return Created($"/api/works/{id}", new { id });
     }
 
+    /// <summary>Adds a link as a new version of the artifact of that type.</summary>
     [HttpPost("{id:guid}/artifacts")]
     public async Task<IActionResult> AddArtifact(Guid id, AddArtifactRequest r, CancellationToken ct)
     {
-        var artifact = await mediator.Send(new AddArtifactCommand(id, UserId, r.Type, r.LinkUrl, r.FileUrl, r.FileName, r.FileSizeBytes), ct);
+        var artifact = await mediator.Send(new AddArtifactCommand(id, UserId, r.Type, r.LinkUrl), ct);
+        return Created($"/api/works/{id}", artifact);
+    }
+
+    /// <summary>Uploads a file (multipart form with <c>type</c> and <c>file</c>) as a new version of the artifact of that type; see <see cref="ArtifactFileRules"/> for the accepted formats and size.</summary>
+    [HttpPost("{id:guid}/artifacts/file"), RequestSizeLimit(ArtifactFileRules.MaxSizeBytes + 1024 * 1024)]
+    public async Task<IActionResult> UploadArtifactFile(Guid id, [FromForm] ArtifactType type, IFormFile file, CancellationToken ct)
+    {
+        await using var content = file.OpenReadStream();
+        var artifact = await mediator.Send(new UploadArtifactFileCommand(id, UserId, type, file.FileName, file.Length, content), ct);
         return Created($"/api/works/{id}", artifact);
     }
 

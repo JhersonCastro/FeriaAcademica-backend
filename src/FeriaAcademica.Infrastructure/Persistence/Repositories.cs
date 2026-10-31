@@ -22,7 +22,9 @@ internal sealed class EventReadModel(AppDbContext db) : IEventReadModel
 {
     public async Task<IReadOnlyList<EventDto>> ListAsync(CancellationToken ct) =>
         await db.Events.AsNoTracking().OrderBy(e => e.StartDate).ThenBy(e => e.Name)
-            .Select(e => new EventDto(e.Id, e.InstitutionId, e.Name, e.Status.ToString(), e.StartDate, e.EndDate))
+            .Select(e => new EventDto(e.Id, e.InstitutionId, e.Name, e.Status.ToString(), e.StartDate, e.EndDate,
+                db.EventStages.Where(s => s.EventId == e.Id && s.Type == StageType.Reception && s.Status != StageStatus.Disabled)
+                    .Select(s => s.EndDate).FirstOrDefault()))
             .ToListAsync(ct);
 }
 
@@ -95,4 +97,24 @@ internal sealed class MyWorkReadModel(AppDbContext db) : IMyWorkReadModel
 internal sealed class ParticipationRepository(AppDbContext db) : IParticipationRepository
 {
     public Task<Participation?> GetAsync(Guid id, CancellationToken ct) => db.Participations.FirstOrDefaultAsync(p => p.Id == id, ct);
+
+    public Task<Participation?> GetByEventAndUserAsync(Guid eventId, Guid userId, CancellationToken ct) =>
+        db.Participations.FirstOrDefaultAsync(p => p.EventId == eventId && p.UserId == userId, ct);
+
+    public async Task AddAsync(Participation participation, CancellationToken ct) => await db.Participations.AddAsync(participation, ct);
+}
+
+internal sealed class RoleAssignmentRepository(AppDbContext db) : IRoleAssignmentRepository
+{
+    public Task<bool> HasRoleAsync(Guid userId, Guid eventId, EventRole role, CancellationToken ct) =>
+        db.RoleAssignments.AnyAsync(r => r.UserId == userId && r.EventId == eventId && r.Role == role, ct);
+}
+
+internal sealed class InvitationRepository(AppDbContext db) : IInvitationRepository
+{
+    public Task<Invitation?> GetAsync(Guid id, CancellationToken ct) => db.Invitations.FirstOrDefaultAsync(i => i.Id == id, ct);
+
+    public Task<Invitation?> GetByTokenAsync(string token, CancellationToken ct) => db.Invitations.FirstOrDefaultAsync(i => i.Token == token, ct);
+
+    public async Task AddAsync(Invitation invitation, CancellationToken ct) => await db.Invitations.AddAsync(invitation, ct);
 }

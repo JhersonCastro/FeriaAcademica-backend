@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using FeriaAcademica.Application.Features.Events.Commands.CreateEvent;
+using FeriaAcademica.Application.Features.Events.Commands.InviteParticipant;
 using FeriaAcademica.Application.Features.Events.Commands.PublishEvent;
 using FeriaAcademica.Application.Features.Events.Commands.ScheduleEventStage;
 using FeriaAcademica.Application.Features.Events.Queries.ListEvents;
@@ -15,6 +16,7 @@ public class EventsController(IMediator mediator) : ControllerBase
 {
     public sealed record CreateEventRequest(Guid InstitutionId, string Name);
     public sealed record ScheduleStageRequest(DateTime StartDate, DateTime EndDate);
+    public sealed record InviteRequest(string Email);
 
     [HttpGet]
     public async Task<IReadOnlyList<EventDto>> List(CancellationToken ct) => await mediator.Send(new ListEventsQuery(), ct);
@@ -25,6 +27,14 @@ public class EventsController(IMediator mediator) : ControllerBase
         var createdBy = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var id = await mediator.Send(new CreateEventCommand(r.InstitutionId, r.Name, createdBy), ct);
         return Created($"/api/events/{id}", new { id });
+    }
+
+    /// <summary>A professor of the event invites a student by email; returns the token to hand to them, and the professor becomes the reviewer of their works.</summary>
+    [HttpPost("{id:guid}/invitations")]
+    public async Task<IActionResult> Invite(Guid id, InviteRequest r, CancellationToken ct)
+    {
+        var invitation = await mediator.Send(new InviteParticipantCommand(id, Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!), r.Email), ct);
+        return Created($"/api/events/{id}/invitations/{invitation.Id}", invitation);
     }
 
     [HttpPost("{id:guid}/publish")]

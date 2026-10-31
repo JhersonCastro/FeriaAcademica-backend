@@ -39,6 +39,16 @@ public sealed class Invitation : Entity
         if (string.IsNullOrWhiteSpace(token)) throw new DomainException("Token is required.");
         return new Invitation { EventId = eventId, Email = email.Trim(), Role = role, Origin = origin, SenderId = senderId, Token = token, ExpiresAt = expiresAt };
     }
+
+    /// <summary>The invited person takes the invitation; it must be pending, unexpired and addressed to their email.</summary>
+    public void Accept(Guid userId, string userEmail, DateTime now)
+    {
+        if (Status != InvitationStatus.Pending) throw new DomainException($"The invitation is {Status}.");
+        if (now > ExpiresAt) throw new DomainException("The invitation has expired.");
+        if (!string.Equals(Email, userEmail?.Trim(), StringComparison.OrdinalIgnoreCase)) throw new DomainException("The invitation was sent to another email.");
+        UserId = userId;
+        Status = InvitationStatus.Accepted;
+    }
 }
 
 public sealed class Participation : Entity
