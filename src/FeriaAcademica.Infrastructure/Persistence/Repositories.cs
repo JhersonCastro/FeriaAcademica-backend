@@ -1,4 +1,6 @@
 using FeriaAcademica.Application.Features.Attendance.Queries.GetAttendanceSummary;
+using FeriaAcademica.Application.Features.Certificates.Queries.ListMyCertificates;
+using FeriaAcademica.Application.Features.Events.Queries.GetEventReport;
 using FeriaAcademica.Application.Features.Events.Queries.ListEvents;
 using FeriaAcademica.Application.Features.Invitations.Queries.GetInvitation;
 using FeriaAcademica.Application.Features.Notifications.Queries.ListMyNotifications;
@@ -190,6 +192,12 @@ internal sealed class WorkRepository(AppDbContext db) : IWorkRepository
     public Task<Work?> GetAsync(Guid id, CancellationToken ct) =>
         db.Works.Include(w => w.Artifacts).Include(w => w.ReviewQueue).FirstOrDefaultAsync(w => w.Id == id, ct);
 
+    public Task<Work?> GetWithFinalVersionAsync(Guid eventId, Guid userId, CancellationToken ct) =>
+        db.Works.Include(w => w.Artifacts)
+            .Where(w => w.Artifacts.Any(a => a.IsFinal) && db.Participations.Any(p => p.Id == w.ParticipationId && p.EventId == eventId && p.UserId == userId))
+            .OrderBy(w => w.Title)
+            .FirstOrDefaultAsync(ct);
+
     public async Task AddAsync(Work work, CancellationToken ct) => await db.Works.AddAsync(work, ct);
 }
 
@@ -211,7 +219,7 @@ internal sealed class WorkReadModel(AppDbContext db) : IWorkReadModel
                         .Select(s => s.EndDate).FirstOrDefault(),
                     x.Closure, x.ClosureReason, x.ClosedAt,
                     Artifacts = x.Artifacts.OrderBy(a => a.Type).ThenByDescending(a => a.Version)
-                        .Select(a => new { a.Id, a.Type, a.Version, a.FileUrl, a.LinkUrl, a.UploadedAt }).ToList(),
+                        .Select(a => new { a.Id, a.Type, a.Version, a.FileUrl, a.LinkUrl, a.UploadedAt, a.IsFinal }).ToList(),
                     Reviews = x.ReviewQueue.Where(q => q.Result != null).OrderBy(q => q.Attempt)
                         .Select(q => new { q.Attempt, q.Result, q.Observations, q.ResolvedAt }).ToList(),
                 })
@@ -219,7 +227,7 @@ internal sealed class WorkReadModel(AppDbContext db) : IWorkReadModel
 
         return w is null ? null : new WorkDto(w.Id, w.ParticipationId, w.EventId, w.EventName, w.ProfessorId, w.Title, w.Summary, w.Status.ToString(),
             w.CurrentAttempt, w.RejectionCount, w.MaxRejections, w.SubmittedAt, w.SubmissionDeadline, w.Closure?.ToString(), w.ClosureReason, w.ClosedAt,
-            w.Artifacts.Select(a => new WorkArtifactDto(a.Id, a.Type.ToString(), a.Version, a.FileUrl, a.LinkUrl, a.UploadedAt)).ToList(),
+            w.Artifacts.Select(a => new WorkArtifactDto(a.Id, a.Type.ToString(), a.Version, a.FileUrl, a.LinkUrl, a.UploadedAt, a.IsFinal)).ToList(),
             w.Reviews.Select(r => new WorkReviewDto(r.Attempt, r.Result!.Value.ToString(), r.Observations, r.ResolvedAt)).ToList());
     }
 }
@@ -295,4 +303,60 @@ internal sealed class NotificationReadModel(AppDbContext db) : INotificationRead
             .OrderByDescending(n => n.CreatedAt)
             .Select(n => new NotificationDto(n.Id, n.EventId, n.Type, n.Message, n.IsRead, n.CreatedAt))
             .ToListAsync(ct);
+}
+
+internal sealed class EventReportRepository(AppDbContext db) : IEventReportRepository
+{
+    public Task<EventReport?> GetByEventAsync(Guid eventId, CancellationToken ct) => db.EventReports.FirstOrDefaultAsync(r => r.EventId == eventId, ct);
+    public async Task AddAsync(EventReport report, CancellationToken ct) => await db.EventReports.AddAsync(report, ct);
+}
+
+internal sealed class EventReportReadModel(AppDbContext db) : IEventReportReadModel
+{
+    public Task<EventReportDto?> GetAsync(Guid eventId, CancellationToken ct) =>
+        db.EventReports.AsNoTracking().Where(r => r.EventId == eventId)
+            .Join(db.Events, r => r.EventId, e => e.Id, (r, e) => new EventReportDto(r.EventId, e.Name, r.Html, r.UpdatedAt))
+            .FirstOrDefaultAsync(ct);
+}
+
+internal sealed class CertificateRepository(AppDbContext db) : ICertificateRepository
+{
+    public Task<Certificate?> GetAsync(Guid eventId, Guid userId, CertificateType type, CancellationToken ct) =>
+        db.Certificates.FirstOrDefaultAsync(c => c.EventId == eventId && c.UserId == userId && c.Type == type, ct);
+
+    public async Task AddAsync(Certificate certificate, CancellationToken ct) => await db.Certificates.AddAsync(certificate, ct);
+}
+
+internal sealed class CertificateReadModel(AppDbContext db) : ICertificateReadModel
+{
+    public async Task<IReadOnlyList<MyCertificateDto>> ListAsync(Guid userId, CancellationToken ct)
+    {
+        var attended = await (
+                from r in db.Registrations.AsNoTracking()
+                join a in db.Attendances on r.Id equals a.RegistrationId
+                join e in db.Events on r.EventId equals e.Id
+                where r.UserId == userId
+                select new { EventId = e.Id, EventName = e.Name, e.Status })
+            .ToListAsync(ct);
+
+        var participated = await (
+                from w in db.Works.AsNoTracking()
+                join p in db.Participations on w.ParticipationId equals p.Id
+                join e in db.Events on p.EventId equals e.Id
+                where p.UserId == userId && w.Artifacts.Any(a => a.IsFinal)
+                select new { EventId = e.Id, EventName = e.Name, e.Status, WorkId = w.Id, WorkTitle = w.Title })
+            .ToListAsync(ct);
+
+        var issued = await db.Certificates.AsNoTracking().Where(c => c.UserId == userId).ToListAsync(ct);
+        string? CodeOf(Guid eventId, CertificateType type) => issued.FirstOrDefault(c => c.EventId == eventId && c.Type == type)?.Code;
+        static bool Finished(EventStatus status) => status is EventStatus.Closed or EventStatus.Archived;
+
+        return attended
+            .Select(x => new MyCertificateDto(x.EventId, x.EventName, nameof(CertificateType.Attendance), null, null, Finished(x.Status),
+                CodeOf(x.EventId, CertificateType.Attendance)))
+            .Concat(participated.Select(x => new MyCertificateDto(x.EventId, x.EventName, nameof(CertificateType.Participation), x.WorkId, x.WorkTitle,
+                Finished(x.Status), CodeOf(x.EventId, CertificateType.Participation))))
+            .OrderBy(c => c.EventName).ThenBy(c => c.Type)
+            .ToList();
+    }
 }

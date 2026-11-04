@@ -1,6 +1,8 @@
 using FeriaAcademica.Application.Abstractions;
 using FeriaAcademica.Application.Features.Auth;
 using FeriaAcademica.Application.Features.Attendance.Queries.GetAttendanceSummary;
+using FeriaAcademica.Application.Features.Certificates.Queries.ListMyCertificates;
+using FeriaAcademica.Application.Features.Events.Queries.GetEventReport;
 using FeriaAcademica.Application.Features.Events.Queries.ListEvents;
 using FeriaAcademica.Application.Features.Invitations.Queries.GetInvitation;
 using FeriaAcademica.Application.Features.Notifications.Queries.ListMyNotifications;
@@ -18,6 +20,7 @@ using FeriaAcademica.Domain.Works;
 using FeriaAcademica.Infrastructure.Auth;
 using FeriaAcademica.Infrastructure.Email;
 using FeriaAcademica.Infrastructure.Identity;
+using FeriaAcademica.Infrastructure.Pdf;
 using FeriaAcademica.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -52,6 +55,11 @@ public static class DependencyInjection
         s.AddScoped<IParticipationRepository, ParticipationRepository>();
         s.AddScoped<INotificationRepository, NotificationRepository>();
         s.AddScoped<INotificationReadModel, NotificationReadModel>();
+        s.AddScoped<IEventReportRepository, EventReportRepository>();
+        s.AddScoped<IEventReportReadModel, EventReportReadModel>();
+        s.AddScoped<ICertificateRepository, CertificateRepository>();
+        s.AddScoped<ICertificateReadModel, CertificateReadModel>();
+        s.AddSingleton<IPdfRenderer, PdfRenderer>();
 
         s.AddIdentityCore<ApplicationUser>(o =>
             {
