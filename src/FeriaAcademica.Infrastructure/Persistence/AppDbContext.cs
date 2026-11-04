@@ -22,6 +22,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<EventTemplate> EventTemplates => Set<EventTemplate>();
     public DbSet<AcademicEvent> Events => Set<AcademicEvent>();
     public DbSet<EventStage> EventStages => Set<EventStage>();
+    public DbSet<EventReport> EventReports => Set<EventReport>();
     public DbSet<RoleAssignment> RoleAssignments => Set<RoleAssignment>();
     public DbSet<Invitation> Invitations => Set<Invitation>();
     public DbSet<Participation> Participations => Set<Participation>();

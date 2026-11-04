@@ -83,3 +83,15 @@ internal sealed class ParticipationConfiguration : IEntityTypeConfiguration<Part
         b.HasIndex(x => new { x.EventId, x.UserId }).IsUnique();
     }
 }
+
+internal sealed class EventReportConfiguration : IEntityTypeConfiguration<EventReport>
+{
+    public void Configure(EntityTypeBuilder<EventReport> b)
+    {
+        b.ToTable("EventReports");
+        b.Property(x => x.Html).IsRequired();
+        b.HasOne<AcademicEvent>().WithMany().HasForeignKey(x => x.EventId);
+        b.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UpdatedBy);
+        b.HasIndex(x => x.EventId).IsUnique();   // one report per event
+    }
+}
