@@ -1,8 +1,12 @@
 using FeriaAcademica.Application.Features.Events.Commands.AssignEventRole;
+using FeriaAcademica.Application.Features.Events.Commands.CloseEvent;
 using FeriaAcademica.Application.Features.Events.Commands.CreateEvent;
 using FeriaAcademica.Application.Features.Events.Commands.PublishEvent;
+using FeriaAcademica.Application.Features.Events.Commands.SaveEventReport;
 using FeriaAcademica.Application.Features.Events.Commands.ScheduleEventStage;
 using FeriaAcademica.Application.Features.Events.Commands.SetEventCapacity;
+using FeriaAcademica.Application.Features.Events.Queries.DownloadEventReport;
+using FeriaAcademica.Application.Features.Events.Queries.GetEventReport;
 using FeriaAcademica.Application.Features.Events.Queries.ListEvents;
 using FeriaAcademica.Application.Features.Invitations.Commands.SendInvitation;
 using FeriaAcademica.Domain.Events;
@@ -21,6 +25,7 @@ public class EventsController(IMediator mediator) : ControllerBase
     public sealed record ScheduleStageRequest(DateTime StartDate, DateTime EndDate);
     public sealed record AssignRoleRequest(Guid UserId, string Role);
     public sealed record InviteRequest(string Email, string Role);
+    public sealed record SaveReportRequest(string? Html);
 
     [HttpGet]
     public async Task<IReadOnlyList<EventDto>> List(CancellationToken ct) => await mediator.Send(new ListEventsQuery(), ct);
@@ -36,6 +41,14 @@ public class EventsController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Publish(Guid id, CancellationToken ct)
     {
         await mediator.Send(new PublishEventCommand(id), ct);
+        return NoContent();
+    }
+
+    /// <summary>Ends a published or ongoing event: certificates become available and registrations stop.</summary>
+    [HttpPost("{id:guid}/close"), Authorize(Policy = AppClaims.SuperAdminPolicy)]
+    public async Task<IActionResult> Close(Guid id, CancellationToken ct)
+    {
+        await mediator.Send(new CloseEventCommand(id), ct);
         return NoContent();
     }
 
@@ -69,5 +82,26 @@ public class EventsController(IMediator mediator) : ControllerBase
     {
         var invitationId = await mediator.Send(new SendInvitationCommand(id, r.Email, r.Role, User.UserId()), ct);
         return Created($"/api/events/{id}/invitations/{invitationId}", new { id = invitationId });
+    }
+
+    /// <summary>The event's report: the HTML the administrator composed.</summary>
+    [HttpGet("{id:guid}/report"), Authorize(Policy = AppClaims.SuperAdminPolicy)]
+    public async Task<IActionResult> GetReport(Guid id, CancellationToken ct) =>
+        await mediator.Send(new GetEventReportQuery(id), ct) is { } report ? Ok(report) : NotFound();
+
+    /// <summary>Creates the report or replaces its content (text, styles and inline images as HTML).</summary>
+    [HttpPut("{id:guid}/report"), Authorize(Policy = AppClaims.SuperAdminPolicy)]
+    public async Task<IActionResult> SaveReport(Guid id, SaveReportRequest r, CancellationToken ct)
+    {
+        await mediator.Send(new SaveEventReportCommand(id, r.Html, User.UserId()), ct);
+        return NoContent();
+    }
+
+    /// <summary>The report as a PDF, with the same content and format as the page.</summary>
+    [HttpGet("{id:guid}/report/pdf"), Authorize(Policy = AppClaims.SuperAdminPolicy)]
+    public async Task<IActionResult> DownloadReport(Guid id, CancellationToken ct)
+    {
+        var pdf = await mediator.Send(new DownloadEventReportQuery(id), ct);
+        return File(pdf.Content, "application/pdf", pdf.FileName);
     }
 }

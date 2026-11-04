@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using FeriaAcademica.Application.Features.Works.Commands.AddArtifact;
 using FeriaAcademica.Application.Features.Works.Commands.CreateWork;
+using FeriaAcademica.Application.Features.Works.Commands.SubmitFinalVersion;
 using FeriaAcademica.Application.Features.Works.Commands.SubmitWork;
 using FeriaAcademica.Application.Features.Works.Commands.WithdrawWork;
 using FeriaAcademica.Application.Features.Works.Queries.GetWork;
@@ -19,6 +20,9 @@ public class WorksController(IMediator mediator) : ControllerBase
     public sealed record CreateWorkRequest(Guid ParticipationId, Guid ProfessorId, string Title, string? Summary);
     /// <summary>Send a <c>LinkUrl</c>, or a <c>FileUrl</c> with the original <c>FileName</c> and <c>FileSizeBytes</c>.</summary>
     public sealed record AddArtifactRequest(ArtifactType Type, string? LinkUrl, string? FileUrl, string? FileName, long? FileSizeBytes);
+
+    /// <summary>The uploaded final document: its <c>FileUrl</c> with the original <c>FileName</c> and <c>FileSizeBytes</c>.</summary>
+    public sealed record SubmitFinalVersionRequest(string? FileUrl, string? FileName, long? FileSizeBytes);
 
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -61,5 +65,13 @@ public class WorksController(IMediator mediator) : ControllerBase
     {
         await mediator.Send(new WithdrawWorkCommand(id, UserId), ct);
         return NoContent();
+    }
+
+    /// <summary>Delivers the definitive document of an approved work (PDF, within the size limit); it is marked as the final version.</summary>
+    [HttpPost("{id:guid}/final-version")]
+    public async Task<IActionResult> SubmitFinalVersion(Guid id, SubmitFinalVersionRequest r, CancellationToken ct)
+    {
+        var artifact = await mediator.Send(new SubmitFinalVersionCommand(id, UserId, r.FileUrl, r.FileName, r.FileSizeBytes), ct);
+        return Created($"/api/works/{id}", artifact);
     }
 }
