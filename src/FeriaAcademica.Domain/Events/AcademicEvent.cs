@@ -29,6 +29,9 @@ public sealed class AcademicEvent : Entity
     public DateTime? SubmissionDeadline =>
         _stages.FirstOrDefault(s => s.Type == StageType.Reception && s.Status != StageStatus.Disabled)?.EndDate;
 
+    /// <summary>Certificates are handed out once the event is over.</summary>
+    public bool IsFinished => Status is EventStatus.Closed or EventStatus.Archived;
+
     private AcademicEvent() { } // EF Core
 
     public static AcademicEvent Create(Guid institutionId, string name, Guid createdBy, Guid? templateId = null,
@@ -87,6 +90,13 @@ public sealed class AcademicEvent : Entity
         if (Status != EventStatus.Configuration) throw new DomainException($"An event in state {Status} cannot be published.");
         if (_stages.All(s => s.Status == StageStatus.Disabled)) throw new DomainException("At least one stage must be active.");
         Status = EventStatus.Published;
+    }
+
+    /// <summary>Ends the event; from then on certificates can be downloaded and registrations are no longer accepted.</summary>
+    public void Close()
+    {
+        if (Status is not (EventStatus.Published or EventStatus.InProgress)) throw new DomainException($"An event in state {Status} cannot be closed.");
+        Status = EventStatus.Closed;
     }
 
     /// <summary>People can register and attendance can be taken only while the event is published or in progress.</summary>
