@@ -1,5 +1,6 @@
 using FeriaAcademica.Domain.Common;
 using FeriaAcademica.Domain.Events;
+using FeriaAcademica.Domain.Works;
 
 namespace FeriaAcademica.Domain.Registrations;
 
@@ -56,6 +57,25 @@ public static class AttendancePolicy
     {
         if (isSuperAdmin || eventRoles.Contains(EventRole.Coordinator) || eventRoles.Contains(EventRole.Teacher)) return;
         throw new DomainException("Only the super admin or a coordinator or teacher of the event can take attendance.");
+    }
+}
+
+/// <summary>
+/// Who may download a certificate: only once the event is over, and only a person who attended (attendance certificate)
+/// or who delivered the final version of their work (participation certificate).
+/// </summary>
+public static class CertificateEligibility
+{
+    public static void EnsureCanDownload(CertificateType type, AcademicEvent academicEvent, bool attended, Work? workWithFinalVersion)
+    {
+        if (!academicEvent.IsFinished) throw new DomainException("Certificates are available once the event has finished.");
+        switch (type)
+        {
+            case CertificateType.Attendance when !attended:
+                throw new DomainException("An attendance certificate requires having attended the event.");
+            case CertificateType.Participation when workWithFinalVersion is null || !workWithFinalVersion.HasFinalVersion:
+                throw new DomainException("A participation certificate requires a work with its final version delivered.");
+        }
     }
 }
 
