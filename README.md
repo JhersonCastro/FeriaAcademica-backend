@@ -105,6 +105,25 @@ La respuesta incluye `attendeeName` y `enteredAt` para mostrar quién es. Dos le
 | `POST /api/events/{id}/attendance/scan` | Súper admin, coordinador o profesor del evento | Registrar asistencia con el QR leído. |
 | `GET /api/events/{id}/attendance/summary` | Súper admin, coordinador o profesor del evento | `registered`, `entered`, `pending` y `lastEntryAt`; el frontend lo consulta cada pocos segundos para ver la afluencia. Las inscripciones canceladas no cuentan. |
 
+## Versión final, informe del evento y certificados
+
+**Versión final (HU-030).** Cuando el profesor aprueba un trabajo (`Admitted`), su autor sube la versión definitiva con `POST /api/works/{id}/final-version` y `{ "fileUrl", "fileName", "fileSizeBytes" }`. Se valida el formato (PDF) y el tamaño (10 MB) y el documento queda marcado como definitivo (`isFinal` en `GET /api/works/{id}`). Solo hay una versión final por trabajo.
+
+**Informe del evento (HU-032).** El informe es HTML libre que arma el súper admin (texto, estilos, imágenes en línea con `data:`). El PDF es esa misma página; el servidor no descarga imágenes ni hojas de estilo externas.
+
+**Certificados (HU-061).** Solo se descargan cuando el evento terminó (`Closed` o `Archived`). Certificado de asistencia: la persona tiene asistencia registrada por QR. Certificado de participación: es autora de un trabajo con versión final. Se emite la primera vez que se descarga y después se devuelve el mismo código.
+
+| Método y ruta | Quién | Para |
+| --- | --- | --- |
+| `POST /api/works/{id}/final-version` | Autor del trabajo | Subir la versión final. |
+| `GET` · `PUT /api/events/{id}/report` | Súper admin | Leer o guardar el HTML del informe. |
+| `GET /api/events/{id}/report/pdf` | Súper admin | Descargar el informe en PDF. |
+| `POST /api/events/{id}/close` | Súper admin | Terminar el evento (habilita los certificados y cierra inscripciones). |
+| `GET /api/certificates/mine` | Con sesión | «Mis certificados»: `type`, `available` y `code` si ya se emitió. |
+| `GET /api/certificates/events/{eventId}/{Attendance\|Participation}/pdf` | Con sesión | Descargar el certificado en PDF. |
+
+Los PDF usan PDFsharp y HtmlRenderer (MIT/BSD) y necesitan una fuente sans-serif instalada (Arial en Windows; Liberation o DejaVu en Linux).
+
 ## Estructura
 
 ```
@@ -115,7 +134,8 @@ src/
 ├── FeriaAcademica.Domain          Entidades, enums y reglas de negocio. No depende de nadie.
 └── FeriaAcademica.Infrastructure  EF Core, repositorios, Identity. Implementa las interfaces de Application y Domain.
 tests/
-└── FeriaAcademica.Domain.Tests    Pruebas de las reglas del dominio (xUnit).
+├── FeriaAcademica.Domain.Tests    Pruebas de las reglas del dominio (xUnit).
+└── FeriaAcademica.Api.Tests       Pruebas de integración: la API real sobre SQLite en memoria (no necesitan PostgreSQL).
 ```
 
 ### Dónde va cada cosa
