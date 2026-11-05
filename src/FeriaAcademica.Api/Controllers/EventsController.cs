@@ -7,6 +7,7 @@ using FeriaAcademica.Application.Features.Events.Commands.ScheduleEventStage;
 using FeriaAcademica.Application.Features.Events.Commands.SetEventCapacity;
 using FeriaAcademica.Application.Features.Events.Queries.DownloadEventReport;
 using FeriaAcademica.Application.Features.Events.Queries.GetEventReport;
+using FeriaAcademica.Application.Features.Events.Queries.GetEventSummary;
 using FeriaAcademica.Application.Features.Events.Queries.GetMyParticipation;
 using FeriaAcademica.Application.Features.Events.Queries.ListEventProfessors;
 using FeriaAcademica.Application.Features.Events.Queries.ListEvents;
@@ -94,6 +95,11 @@ public class EventsController(IMediator mediator) : ControllerBase
         var invitationId = await mediator.Send(new SendInvitationCommand(id, r.Email, r.Role, User.UserId()), ct);
         return Created($"/api/events/{id}/invitations/{invitationId}", new { id = invitationId });
     }
+
+    /// <summary>The event's consolidated figures (works, registered people and attendees), up to date when asked for.</summary>
+    [HttpGet("{id:guid}/report/summary"), Authorize(Policy = AppClaims.SuperAdminPolicy)]
+    public async Task<IActionResult> GetSummary(Guid id, CancellationToken ct) =>
+        await mediator.Send(new GetEventSummaryQuery(id), ct) is { } summary ? Ok(summary) : NotFound();
 
     /// <summary>The event's report: the HTML the administrator composed.</summary>
     [HttpGet("{id:guid}/report"), Authorize(Policy = AppClaims.SuperAdminPolicy)]

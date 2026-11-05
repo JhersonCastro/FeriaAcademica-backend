@@ -154,6 +154,21 @@ public class ApiFactory : WebApplicationFactory<Program>
         return 0;
     });
 
+    /// <summary>A work that was submitted and is now in the state <paramref name="reach"/> leaves it (which starts in review).</summary>
+    public Task<Guid> CreateReviewedWorkAsync(Guid eventId, Guid participantId, Guid professorId, Action<Work, DateTime>? reach = null) => Arrange(async (db, _) =>
+    {
+        var participation = Participation.Create(eventId, participantId);
+        var now = DateTime.UtcNow;
+        var work = Work.Create(participation.Id, professorId, "Trabajo " + Guid.NewGuid().ToString("N"), null, 3, participantId, now.AddMinutes(-10));
+        work.AddArtifact(ArtifactType.Document, "https://files.test/draft.pdf", null, now.AddMinutes(-9));
+        work.Submit(participantId, now.AddMinutes(-8));
+        work.StartReview(professorId, now.AddMinutes(-7));
+        reach?.Invoke(work, now);
+        db.AddRange(participation, work);
+        await db.SaveChangesAsync();
+        return work.Id;
+    });
+
     public override ValueTask DisposeAsync()
     {
         _connection.Dispose();

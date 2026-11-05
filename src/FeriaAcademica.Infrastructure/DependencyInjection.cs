@@ -3,6 +3,7 @@ using FeriaAcademica.Application.Features.Auth;
 using FeriaAcademica.Application.Features.Attendance.Queries.GetAttendanceSummary;
 using FeriaAcademica.Application.Features.Certificates.Queries.ListMyCertificates;
 using FeriaAcademica.Application.Features.Events.Queries.GetEventReport;
+using FeriaAcademica.Application.Features.Events.Queries.GetEventSummary;
 using FeriaAcademica.Application.Features.Events.Queries.GetMyParticipation;
 using FeriaAcademica.Application.Features.Events.Queries.ListEventProfessors;
 using FeriaAcademica.Application.Features.Events.Queries.ListEvents;
@@ -41,6 +42,7 @@ public static class DependencyInjection
         s.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<AppDbContext>());
         s.AddScoped<IAcademicEventRepository, AcademicEventRepository>();
         s.AddScoped<IEventReadModel, EventReadModel>();
+        s.AddScoped<IEventSummaryReadModel, EventSummaryReadModel>();
         s.AddScoped<IEventProfessorReadModel, EventProfessorReadModel>();
         s.AddScoped<IRoleAssignmentRepository, RoleAssignmentRepository>();
         s.AddScoped<IInvitationRepository, InvitationRepository>();
