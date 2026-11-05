@@ -108,15 +108,15 @@ internal sealed class UserReadModel(AppDbContext db) : IUserReadModel, IUserList
         var total = await query.CountAsync(ct);
         var rows = await query.OrderBy(u => u.FullName).ThenBy(u => u.Email)
             .Skip((page - 1) * pageSize).Take(pageSize)
-            .Select(u => new
-            {
-                u.Id, u.Email, u.FullName, u.IsSuperAdmin, u.Status,
-                Roles = db.RoleAssignments.Where(r => r.UserId == u.Id).Select(r => r.Role).Distinct().ToList(),
-            })
+            .Select(u => new { u.Id, u.Email, u.FullName, u.IsSuperAdmin, u.Status })
             .ToListAsync(ct);
 
-        var items = rows.Select(u => new UserSummaryDto(u.Id, u.Email!, u.FullName, u.IsSuperAdmin, u.Status.ToString(),
-            u.Roles.Select(r => r.ToString()).Order().ToList())).ToList();
+        // Roles of the users on this page only, in one query (no correlated subquery per row).
+        var ids = rows.Select(u => u.Id).ToList();
+        var roles = (await db.RoleAssignments.AsNoTracking().Where(r => ids.Contains(r.UserId)).Select(r => new { r.UserId, r.Role }).Distinct().ToListAsync(ct))
+            .ToLookup(r => r.UserId, r => r.Role.ToString());
+
+        var items = rows.Select(u => new UserSummaryDto(u.Id, u.Email!, u.FullName, u.IsSuperAdmin, u.Status.ToString(), roles[u.Id].Order().ToList())).ToList();
         return new PagedResult<UserSummaryDto>(items, page, pageSize, total);
     }
 }
