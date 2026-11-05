@@ -2,5 +2,6 @@ namespace FeriaAcademica.Domain.Events;
 
 public interface IRoleAssignmentRepository
 {
-    Task<bool> HasRoleAsync(Guid userId, Guid eventId, EventRole role, CancellationToken ct);
+    Task<IReadOnlyList<EventRole>> GetRolesAsync(Guid userId, Guid eventId, CancellationToken ct);
+    Task AddAsync(RoleAssignment assignment, CancellationToken ct);
 }

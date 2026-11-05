@@ -168,6 +168,9 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
                     b.Property<string>("CancellationReason")
                         .HasColumnType("text");
 
+                    b.Property<int?>("Capacity")
+                        .HasColumnType("integer");
+
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
@@ -215,10 +218,40 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_Events_CancellationReason", "\"Status\" <> 'Cancelled' OR \"CancellationReason\" IS NOT NULL");
 
+                            t.HasCheckConstraint("CK_Events_Capacity", "\"Capacity\" IS NULL OR \"Capacity\" >= 1");
+
                             t.HasCheckConstraint("CK_Events_MaxRejections", "\"MaxRejections\" >= 1");
 
                             t.HasCheckConstraint("CK_Events_Weights", "ABS(\"JuryWeight\" + \"AttendeeWeight\" - 1.0) < 1e-9");
                         });
+                });
+
+            modelBuilder.Entity("FeriaAcademica.Domain.Events.EventReport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Html")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId")
+                        .IsUnique();
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.ToTable("EventReports", (string)null);
                 });
 
             modelBuilder.Entity("FeriaAcademica.Domain.Events.EventStage", b =>
@@ -593,11 +626,12 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
-                    b.HasIndex("EventId");
-
                     b.HasIndex("UserId");
 
                     b.HasIndex("WorkId");
+
+                    b.HasIndex("EventId", "UserId", "Type")
+                        .IsUnique();
 
                     b.ToTable("Certificates", null, t =>
                         {
@@ -647,6 +681,9 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
                     b.Property<string>("FileUrl")
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsFinal")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("LinkUrl")
                         .HasColumnType("text");
 
@@ -665,6 +702,10 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("WorkId")
+                        .IsUnique()
+                        .HasFilter("\"IsFinal\"");
 
                     b.HasIndex("WorkId", "Type", "Version")
                         .IsUnique();
@@ -1128,6 +1169,21 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("TemplateId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("FeriaAcademica.Domain.Events.EventReport", b =>
+                {
+                    b.HasOne("FeriaAcademica.Domain.Events.AcademicEvent", null)
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FeriaAcademica.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("FeriaAcademica.Domain.Events.EventStage", b =>

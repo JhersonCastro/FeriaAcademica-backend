@@ -1,11 +1,10 @@
-using FeriaAcademica.Application.Features.Auth;
-using FeriaAcademica.Application.Features.Auth.Commands.RegisterUser;
+using FeriaAcademica.Application.Features.Auth.Commands.ForgotPassword;
+using FeriaAcademica.Application.Features.Auth.Commands.ResetPassword;
 using FeriaAcademica.Application.Features.Auth.Commands.SignIn;
 using FeriaAcademica.Application.Features.Auth.Commands.SignOut;
-using FeriaAcademica.Infrastructure.Identity;
+using FeriaAcademica.Application.Features.Users.Queries.GetUser;
 using Mediator;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FeriaAcademica.Api.Controllers;
@@ -13,12 +12,9 @@ namespace FeriaAcademica.Api.Controllers;
 [ApiController, Route("api/auth")]
 public class AuthController(IMediator mediator) : ControllerBase
 {
-    public sealed record RegisterRequest(string Email, string Password, string FullName);
     public sealed record LoginRequest(string Email, string Password, bool Remember = false);
-
-    [HttpPost("register")]
-    public async Task<UserDto> Register(RegisterRequest r, CancellationToken ct) =>
-        await mediator.Send(new RegisterUserCommand(r.Email, r.Password, r.FullName), ct);
+    public sealed record ForgotPasswordRequest(string Email);
+    public sealed record ResetPasswordRequest(Guid UserId, string Token, string NewPassword);
 
     [HttpPost("login")]
     public async Task<UserDto> Login(LoginRequest r, CancellationToken ct) =>
@@ -31,10 +27,22 @@ public class AuthController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    /// <summary>The session's user, with super admin flag and roles per event, so the frontend can build the menu.</summary>
     [HttpGet("me"), Authorize]
-    public async Task<UserDto> Me([FromServices] UserManager<ApplicationUser> users)
+    public async Task<UserDto> Me(CancellationToken ct) => await mediator.Send(new GetUserQuery(User.UserId()), ct);
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest r, CancellationToken ct)
     {
-        var user = await users.GetUserAsync(User) ?? throw new UnauthorizedAccessException();
-        return new UserDto(user.Id.ToString(), user.Email!, user.FullName);
+        await mediator.Send(new ForgotPasswordCommand(r.Email), ct);
+        return NoContent();
+    }
+
+    /// <summary>Used both to recover a password and to set the first one of an account created by the super admin.</summary>
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword(ResetPasswordRequest r, CancellationToken ct)
+    {
+        await mediator.Send(new ResetPasswordCommand(r.UserId, r.Token, r.NewPassword), ct);
+        return NoContent();
     }
 }

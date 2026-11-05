@@ -59,11 +59,31 @@ public sealed class Work : Entity
         if (Status != WorkStatus.Draft) throw new DomainException("A work can only be edited while it is a draft.");
         EnsureBeforeDeadline(now, deadline);
         if (!string.IsNullOrWhiteSpace(linkUrl)) ArtifactLinkRules.Validate(linkUrl);
-        var version = _artifacts.Where(a => a.Type == type).Select(a => a.Version).DefaultIfEmpty(0).Max() + 1;
-        var artifact = new Artifact(Id, type, version, fileUrl, linkUrl, now);
+        var artifact = new Artifact(Id, type, NextVersion(type), fileUrl, linkUrl, now);
         _artifacts.Add(artifact);
         return artifact;
     }
+
+    public bool HasFinalVersion => _artifacts.Any(a => a.IsFinal);
+
+    /// <summary>
+    /// The author delivers the definitive document once the work is approved (admitted by the reviewer, or already evaluated).
+    /// The file must have an allowed format and size, and only one version can be the final one.
+    /// </summary>
+    public Artifact SubmitFinalVersion(string fileUrl, string fileName, long sizeBytes, DateTime now)
+    {
+        if (Status is not (WorkStatus.Admitted or WorkStatus.Evaluated))
+            throw new DomainException("The final version can only be submitted once the work is approved.");
+        if (HasFinalVersion) throw new DomainException("The final version was already submitted.");
+        if (string.IsNullOrWhiteSpace(fileUrl)) throw new DomainException("The file is required.");
+        ArtifactFileRules.Validate(fileName, sizeBytes);
+
+        var artifact = new Artifact(Id, ArtifactType.Document, NextVersion(ArtifactType.Document), fileUrl.Trim(), null, now, isFinal: true);
+        _artifacts.Add(artifact);
+        return artifact;
+    }
+
+    private int NextVersion(ArtifactType type) => _artifacts.Where(a => a.Type == type).Select(a => a.Version).DefaultIfEmpty(0).Max() + 1;
 
     /// <param name="deadline">End of the event's reception stage; null when the event has not set one.</param>
     public void Submit(Guid actorId, DateTime now, DateTime? deadline = null)
@@ -109,11 +129,27 @@ public sealed class Work : Entity
         MoveTo(WorkStatus.InReview, reviewerId, now);
     }
 
-    public void Admit(Guid reviewerId, DateTime now)
+    /// <summary>Records the reviewer's decision: approved, approved with changes (back to draft to correct it) or rejected (closed).</summary>
+    public void Decide(Guid reviewerId, ReviewDecision decision, string? feedback, DateTime now)
+    {
+        if (decision is not ReviewDecision.Approved && string.IsNullOrWhiteSpace(feedback))
+            throw new DomainException("Feedback is required unless the work is approved.");
+
+        switch (decision)
+        {
+            case ReviewDecision.Approved: Admit(reviewerId, now, feedback); break;
+            case ReviewDecision.ApprovedWithChanges: Reject(reviewerId, feedback!, now); break;
+            case ReviewDecision.Rejected: RejectDefinitively(reviewerId, feedback!, now); break;
+            default: throw new DomainException($"Unknown review decision {decision}.");
+        }
+    }
+
+    public void Admit(Guid reviewerId, DateTime now, string? observations = null)
     {
         EnsureInReviewBy(reviewerId);
-        CurrentQueueItem()?.Resolve(ReviewResult.Admitted, null, now);
-        MoveTo(WorkStatus.Admitted, reviewerId, now);
+        observations = string.IsNullOrWhiteSpace(observations) ? null : observations;
+        CurrentQueueItem()?.Resolve(ReviewResult.Admitted, observations, now);
+        MoveTo(WorkStatus.Admitted, reviewerId, now, observations);
     }
 
     public void Reject(Guid reviewerId, string observations, DateTime now)
