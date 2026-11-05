@@ -126,6 +126,15 @@ La respuesta incluye `attendeeName` y `enteredAt` para mostrar quién es. Dos le
 
 Los PDF usan PDFsharp y HtmlRenderer (MIT/BSD) y necesitan una fuente sans-serif instalada (Arial en Windows; Liberation o DejaVu en Linux).
 
+## Seguridad (HU-080)
+
+- **Contraseñas:** Identity las guarda como hash PBKDF2 con sal aleatoria; nunca se guardan tal como se escriben.
+- **HTTPS:** fuera de `Development`, la API redirige HTTP a HTTPS, envía HSTS y marca la cookie como `Secure`.
+- **Sesión:** cookie `feria.auth`, `HttpOnly`, con un ticket cifrado que vence tras 8 horas sin uso.
+- **CORS:** solo acepta llamadas con cookie desde `Frontend:BaseUrl`. En producción, esa dirección debe ser la HTTPS del frontend.
+
+En `Development` el perfil `http` sigue siendo el predeterminado: un frontend en `http://localhost:4200` no enviaría la cookie `SameSite=Lax` a una API en `https://`. Si la API se despliega detrás de un proxy que termina el HTTPS, hay que añadir encabezados reenviados (forwarded headers) y definir `ASPNETCORE_HTTPS_PORT`.
+
 ## Estructura
 
 ```
