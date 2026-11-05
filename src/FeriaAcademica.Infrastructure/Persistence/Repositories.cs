@@ -1,6 +1,7 @@
 using FeriaAcademica.Application.Features.Attendance.Queries.GetAttendanceSummary;
 using FeriaAcademica.Application.Features.Certificates.Queries.ListMyCertificates;
 using FeriaAcademica.Application.Features.Events.Queries.GetEventReport;
+using FeriaAcademica.Application.Features.Events.Queries.GetEventSummary;
 using FeriaAcademica.Application.Features.Events.Queries.ListEvents;
 using FeriaAcademica.Application.Features.Invitations.Queries.GetInvitation;
 using FeriaAcademica.Application.Features.Notifications.Queries.ListMyNotifications;
@@ -317,6 +318,25 @@ internal sealed class EventReportReadModel(AppDbContext db) : IEventReportReadMo
         db.EventReports.AsNoTracking().Where(r => r.EventId == eventId)
             .Join(db.Events, r => r.EventId, e => e.Id, (r, e) => new EventReportDto(r.EventId, e.Name, r.Html, r.UpdatedAt))
             .FirstOrDefaultAsync(ct);
+}
+
+internal sealed class EventSummaryReadModel(AppDbContext db) : IEventSummaryReadModel
+{
+    public async Task<EventWorkCounts?> GetWorkCountsAsync(Guid eventId, CancellationToken ct)
+    {
+        var academicEvent = await db.Events.AsNoTracking().Where(e => e.Id == eventId).Select(e => new { e.Name, e.Status }).FirstOrDefaultAsync(ct);
+        if (academicEvent is null) return null;
+
+        var counts = await (
+                from w in db.Works.AsNoTracking()
+                join p in db.Participations on w.ParticipationId equals p.Id
+                where p.EventId == eventId && w.SubmittedAt != null
+                group w by w.Status into g
+                select new { Status = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        return new EventWorkCounts(academicEvent.Name, academicEvent.Status.ToString(), counts.ToDictionary(c => c.Status, c => c.Count));
+    }
 }
 
 internal sealed class CertificateRepository(AppDbContext db) : ICertificateRepository
