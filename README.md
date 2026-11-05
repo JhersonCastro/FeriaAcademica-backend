@@ -111,13 +111,24 @@ La respuesta incluye `attendeeName` y `enteredAt` para mostrar quién es. Dos le
 
 **Versión final (HU-030).** Cuando el profesor aprueba un trabajo (`Admitted`), su autor sube la versión definitiva con `POST /api/works/{id}/final-version` y `{ "fileUrl", "fileName", "fileSizeBytes" }`. Se valida el formato (PDF) y el tamaño (10 MB) y el documento queda marcado como definitivo (`isFinal` en `GET /api/works/{id}`). Solo hay una versión final por trabajo.
 
-**Informe del evento (HU-032).** El informe es HTML libre que arma el súper admin (texto, estilos, imágenes en línea con `data:`). El PDF es esa misma página; el servidor no descarga imágenes ni hojas de estilo externas.
+**Informe del evento (HU-031, HU-032).** `GET /api/events/{id}/report/summary` calcula las cifras en el momento de pedirlas. El informe es HTML libre que arma el súper admin (texto, estilos, imágenes en línea con `data:`), y el frontend inserta allí esas cifras. El PDF es esa misma página; el servidor no descarga imágenes ni hojas de estilo externas.
+
+| Campo | Cuenta |
+| --- | --- |
+| `worksReceived` | Trabajos enviados al menos una vez. Es la suma de los cinco campos siguientes. |
+| `worksApproved` | Aprobados (`Admitted` o `Evaluated`). |
+| `worksRejected` | Rechazados definitivamente. |
+| `worksInReview` | Enviados o en revisión. |
+| `worksReturnedForChanges` | Devueltos a borrador para corregir o retirados antes de la revisión. |
+| `worksWithdrawn` | Cancelados por su autor. |
+| `registered` · `attended` | Inscritos activos y cuántos de ellos ingresaron. |
 
 **Certificados (HU-061).** Solo se descargan cuando el evento terminó (`Closed` o `Archived`). Certificado de asistencia: la persona tiene asistencia registrada por QR. Certificado de participación: es autora de un trabajo con versión final. Se emite la primera vez que se descarga y después se devuelve el mismo código.
 
 | Método y ruta | Quién | Para |
 | --- | --- | --- |
 | `POST /api/works/{id}/final-version` | Autor del trabajo | Subir la versión final. |
+| `GET /api/events/{id}/report/summary` | Súper admin | Cifras consolidadas del evento, actualizadas al pedirlas. |
 | `GET` · `PUT /api/events/{id}/report` | Súper admin | Leer o guardar el HTML del informe. |
 | `GET /api/events/{id}/report/pdf` | Súper admin | Descargar el informe en PDF. |
 | `POST /api/events/{id}/close` | Súper admin | Terminar el evento (habilita los certificados y cierra inscripciones). |
