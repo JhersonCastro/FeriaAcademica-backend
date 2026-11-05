@@ -1,3 +1,4 @@
+using FeriaAcademica.Application.Abstractions;
 using FeriaAcademica.Domain.Events;
 using FeriaAcademica.Domain.Institutions;
 using FeriaAcademica.Domain.Registrations;
@@ -28,6 +29,13 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
     public const string Password = "Passw0rd!2026";
 
     private readonly SqliteConnection _connection = new("DataSource=:memory:");
+    private readonly TimeSpan? _tokenLifespan;
+
+    /// <summary>The emails the API "sent": the tests read the links from here instead of a mailbox.</summary>
+    public CapturedEmails Emails { get; } = new();
+
+    /// <param name="tokenLifespan">Overrides how long password links stay valid (a negative value makes them expired from the start).</param>
+    public ApiFactory(TimeSpan? tokenLifespan = null) => _tokenLifespan = tokenLifespan;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -42,6 +50,11 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<DbContextOptions<AppDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<AppDbContext>>();
             services.AddDbContext<AppDbContext>(o => o.UseSqlite(_connection));
+            services.RemoveAll<IAccountEmails>();
+            services.AddSingleton<IAccountEmails>(Emails);
+            // Production re-checks the session cookie every minute; here on every request, so a deactivation shows up at once.
+            services.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.Zero);
+            if (_tokenLifespan is { } lifespan) services.Configure<DataProtectionTokenProviderOptions>(o => o.TokenLifespan = lifespan);
 
             // The API seeds the super admin as soon as it starts, so the schema has to exist before that.
             using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(_connection).Options);
