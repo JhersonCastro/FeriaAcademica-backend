@@ -57,6 +57,22 @@ public class EventReportApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task The_report_PDF_still_works_after_a_certificate_PDF_was_drawn_in_the_same_process()
+    {
+        var personId = await _api.CreateUserAsync("persona-informe@feria.test", "Ana Gómez");
+        var closedEventId = await _api.CreateEventAsync(await _admin.MyIdAsync(), "Feria cerrada", closed: true);
+        await _api.RegisterAsync(closedEventId, personId, attended: true);
+        var person = await _api.LoginAsync("persona-informe@feria.test");
+        (await person.GetAsync($"/api/certificates/events/{closedEventId}/Attendance/pdf")).EnsureSuccessStatusCode();
+        (await Save("<h1>Informe</h1><p>Texto</p>")).EnsureSuccessStatusCode();
+
+        var response = await _admin.GetAsync($"/api/events/{_eventId}/report/pdf");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(await response.IsPdfAsync());
+    }
+
+    [Fact]
     public async Task The_PDF_follows_the_content_of_the_report()
     {
         (await Save("<p>corto</p>")).EnsureSuccessStatusCode();
