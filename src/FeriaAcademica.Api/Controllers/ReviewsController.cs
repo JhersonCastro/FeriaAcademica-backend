@@ -14,7 +14,7 @@ namespace FeriaAcademica.Api.Controllers;
 [ApiController, Route("api/reviews"), Authorize]
 public class ReviewsController(IMediator mediator) : ControllerBase
 {
-    public sealed record DecisionRequest([property: JsonConverter(typeof(JsonStringEnumConverter))] ReviewDecision Decision, string? Feedback);
+    public sealed record DecisionRequest([property: JsonConverter(typeof(JsonStringEnumConverter))] ReviewDecision? Decision, string? Feedback);
 
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
