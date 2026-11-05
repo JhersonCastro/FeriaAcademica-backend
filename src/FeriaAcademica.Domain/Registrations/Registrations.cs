@@ -7,10 +7,13 @@ namespace FeriaAcademica.Domain.Registrations;
 public enum RegistrationStatus { Registered, Cancelled }
 public enum CertificateType { Attendance, Participation }
 
+/// <summary>What scanning a QR code at the door produced.</summary>
 public enum CheckInOutcome { Entered, AlreadyEntered, RegistrationCancelled }
 
+/// <summary>The outcome of a scan and, when there is one, the attendance it refers to.</summary>
 public sealed record CheckInResult(CheckInOutcome Outcome, Attendance? Attendance);
 
+/// <summary>A person's sign-up to an event; its unguessable QR token is what gets scanned at the door.</summary>
 public sealed class Registration : Entity
 {
     public Guid EventId { get; private set; }
@@ -38,6 +41,7 @@ public sealed class Registration : Entity
     }
 }
 
+/// <summary>The record that a registered person came in; the first valid scan creates it, and there is one per registration.</summary>
 public sealed class Attendance : Entity
 {
     public Guid RegistrationId { get; private set; }
@@ -79,6 +83,7 @@ public static class CertificateEligibility
     }
 }
 
+/// <summary>A certificate issued once, with a unique code; participation certificates reference the work.</summary>
 public sealed class Certificate : Entity
 {
     public Guid EventId { get; private set; }

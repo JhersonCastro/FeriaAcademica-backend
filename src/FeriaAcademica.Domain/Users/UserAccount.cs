@@ -2,6 +2,7 @@ using FeriaAcademica.Domain.Common;
 
 namespace FeriaAcademica.Domain.Users;
 
+/// <summary>Pending until the person sets a password, then Active; an Inactive account cannot sign in.</summary>
 public enum UserStatus { Pending, Active, Inactive }
 
 /// <summary>

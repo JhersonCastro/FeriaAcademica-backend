@@ -2,6 +2,7 @@ using FeriaAcademica.Domain.Common;
 
 namespace FeriaAcademica.Domain.Notifications;
 
+/// <summary>A message for one user, optionally about an event; only the recipient can mark it as read.</summary>
 public sealed class Notification : Entity
 {
     public Guid UserId { get; private set; }

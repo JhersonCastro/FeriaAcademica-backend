@@ -2,10 +2,13 @@ using FeriaAcademica.Domain.Common;
 
 namespace FeriaAcademica.Domain.Events;
 
+/// <summary>The role a person plays in one event; roles belong to the event, not to the user.</summary>
 public enum EventRole { Coordinator, Teacher, Jury, Participant, Attendee }
+/// <summary>Whether a teacher invited the person or the person asked to join.</summary>
 public enum InvitationOrigin { Invitation, Request }
 public enum InvitationStatus { Pending, Accepted, Declined, Expired, Cancelled }
 
+/// <summary>A role that a user holds in one event (unique per user, event and role).</summary>
 public sealed class RoleAssignment : Entity
 {
     public Guid UserId { get; private set; }
@@ -25,6 +28,7 @@ public sealed class RoleAssignment : Entity
     }
 }
 
+/// <summary>An invitation to join an event with a role, sent by email; the token in its link identifies it.</summary>
 public sealed class Invitation : Entity
 {
     public static readonly TimeSpan Lifetime = TimeSpan.FromDays(7);
@@ -75,6 +79,7 @@ public sealed class Invitation : Entity
     }
 }
 
+/// <summary>A participant's place in an event: their works hang from it, and it can come from an invitation.</summary>
 public sealed class Participation : Entity
 {
     public Guid EventId { get; private set; }
