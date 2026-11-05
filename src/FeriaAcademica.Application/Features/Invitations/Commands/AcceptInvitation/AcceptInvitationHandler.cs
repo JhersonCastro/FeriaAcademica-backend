@@ -1,28 +1,45 @@
 using FeriaAcademica.Application.Abstractions;
+using FeriaAcademica.Application.Features.Users;
 using FeriaAcademica.Domain.Common;
 using FeriaAcademica.Domain.Events;
+using FeriaAcademica.Domain.Users;
 using Mediator;
 
 namespace FeriaAcademica.Application.Features.Invitations.Commands.AcceptInvitation;
 
 internal sealed class AcceptInvitationHandler(
-    IInvitationRepository invitations, IAcademicEventRepository events, IParticipationRepository participations, IUnitOfWork uow)
-    : ICommandHandler<AcceptInvitationCommand, Guid>
+    IInvitationRepository invitations, IUserAccounts accounts, IRoleAssignmentRepository roles, IParticipationRepository participations, IUnitOfWork uow)
+    : ICommandHandler<AcceptInvitationCommand, Unit>
 {
-    public async ValueTask<Guid> Handle(AcceptInvitationCommand c, CancellationToken ct)
+    public async ValueTask<Unit> Handle(AcceptInvitationCommand c, CancellationToken ct)
     {
         var invitation = await invitations.GetByTokenAsync(c.Token, ct) ?? throw new DomainException("Invitation not found.");
-        if (invitation.Role != EventRole.Participant) throw new DomainException("This invitation is not for a participant.");
+        var now = DateTime.UtcNow;
 
-        var academicEvent = await events.GetAsync(invitation.EventId, ct) ?? throw new DomainException("Event not found.");
-        academicEvent.EnsureAcceptsParticipants();
-        if (await participations.GetByEventAndUserAsync(academicEvent.Id, c.UserId, ct) is not null)
-            throw new DomainException("You already participate in this event.");
+        Guid userId;
+        var existing = await accounts.FindByEmailAsync(invitation.Email, ct);
+        if (existing is not null)
+        {
+            if (c.CurrentUserId != existing.Id) throw new DomainException("Sign in with the invited account to accept this invitation.");
+            userId = existing.Id;
+        }
+        else
+        {
+            var profile = UserInput.Profile(c.FullName, null, null, null, null);
+            var password = UserInput.Password(c.Password);
+            invitation.EnsureCanBeAcceptedBy(invitation.Email, now); // before creating an account for a dead invitation
+            userId = await accounts.CreateAsync(invitation.Email, profile, password, UserStatus.Active, ct);
+        }
 
-        invitation.Accept(c.UserId, c.UserEmail, DateTime.UtcNow);
-        var participation = Participation.Create(academicEvent.Id, c.UserId, invitation.Id);
-        await participations.AddAsync(participation, ct);
+        var assignment = invitation.Accept(userId, invitation.Email, now);
+        var current = await roles.GetRolesAsync(userId, invitation.EventId, ct);
+        if (!current.Contains(assignment.Role)) await roles.AddAsync(assignment, ct);
+
+        // A student who accepts becomes a participant of the event, linked to the invitation: works hang from this participation.
+        if (assignment.Role == EventRole.Participant && await participations.GetByEventAndUserAsync(invitation.EventId, userId, ct) is null)
+            await participations.AddAsync(Participation.Create(invitation.EventId, userId, invitation.Id), ct);
+
         await uow.SaveChangesAsync(ct);
-        return participation.Id;
+        return Unit.Value;
     }
 }

@@ -20,12 +20,127 @@ dotnet run --project src/FeriaAcademica.Api
 
 En `Development` la API aplica las migraciones pendientes al arrancar.
 
+### Primer súper admin
+
+Al arrancar, si no existe ningún súper admin, la API lo crea con estos datos (van en user-secrets, nunca en `appsettings`):
+
+```bash
+dotnet user-secrets set "SuperAdmin:Email" "admin@tu-dominio.edu.co" --project src/FeriaAcademica.Api
+dotnet user-secrets set "SuperAdmin:Password" "UnaClaveSegura1!" --project src/FeriaAcademica.Api
+dotnet user-secrets set "SuperAdmin:FullName" "Administración" --project src/FeriaAcademica.Api   # opcional
+```
+
+### Correo (SMTP)
+
+Los enlaces para definir o recuperar la contraseña y las invitaciones se envían por correo. Mientras no haya SMTP configurado, en `Development` el correo completo (con el enlace) se escribe en la consola de la API; en otros entornos solo se registra que no se pudo enviar.
+
+```bash
+dotnet user-secrets set "Smtp:Host" "smtp.gmail.com" --project src/FeriaAcademica.Api
+dotnet user-secrets set "Smtp:Port" "587" --project src/FeriaAcademica.Api
+dotnet user-secrets set "Smtp:User" "cuenta@gmail.com" --project src/FeriaAcademica.Api
+dotnet user-secrets set "Smtp:Password" "contraseña-de-aplicación" --project src/FeriaAcademica.Api
+dotnet user-secrets set "Smtp:From" "cuenta@gmail.com" --project src/FeriaAcademica.Api   # opcional, por defecto Smtp:User
+```
+
+Los enlaces apuntan a `Frontend:BaseUrl` (`appsettings.json`, por defecto `http://localhost:4200`).
+
+## Usuarios y roles
+
+- **Súper admin** (el administrador): único rol global. Crea usuarios, los edita, los activa o desactiva, crea eventos y asigna roles.
+- **Roles por evento**: coordinador (`Coordinator`), profesor (`Teacher`), jurado (`Jury`), estudiante (`Participant`) y público (`Attendee`). Una persona puede tener varios roles en un mismo evento y roles distintos en eventos distintos; no quedan en el usuario.
+- **Estados de la cuenta**: `Pending` (creada, sin contraseña), `Active` e `Inactive` (no puede iniciar sesión y sus sesiones abiertas se cierran en menos de un minuto).
+
+Las cuentas nacen de dos formas:
+
+1. El súper admin la crea (`POST /api/users`) y la persona recibe un enlace para definir su contraseña.
+2. Un profesor de un evento invita por correo a un estudiante o a un invitado (`POST /api/events/{id}/invitations`). Si la persona ya tiene cuenta, acepta con su sesión iniciada; si no, crea la cuenta al aceptar.
+
+### Endpoints
+
+| Método y ruta | Quién | Para |
+| --- | --- | --- |
+| `POST /api/auth/login` · `POST /api/auth/logout` | Todos | Sesión con cookie. Tras 5 intentos fallidos la cuenta se bloquea 15 minutos. |
+| `GET /api/auth/me` | Con sesión | Datos del usuario, si es súper admin y sus roles por evento (para armar el menú). |
+| `POST /api/auth/forgot-password` | Todos | Envía el enlace de recuperación. Responde igual exista o no el correo. |
+| `POST /api/auth/reset-password` | Todos | Define la contraseña con el enlace (recuperación o primera contraseña). |
+| `PUT /api/users/me` | Con sesión | Editar mis datos personales. |
+| `GET /api/users?search=&role=&status=&page=&pageSize=` | Súper admin | Listado paginado; busca por nombre o correo y filtra por rol o estado. |
+| `GET /api/users/{id}` · `POST /api/users` · `PUT /api/users/{id}` | Súper admin | Ver, crear y editar usuarios. |
+| `POST /api/users/{id}/activate` · `POST /api/users/{id}/deactivate` | Súper admin | Cambiar el estado. |
+| `POST /api/events/{id}/roles` | Súper admin | Dar un rol a un usuario en un evento. |
+| `POST /api/events/{id}/invitations` | Profesor del evento | Invitar a un estudiante (`Participant`) o invitado (`Attendee`). |
+| `GET /api/invitations/{token}` · `POST /api/invitations/{token}/accept` | Todos | Ver y aceptar una invitación. |
+
+Los enlaces de definir o recuperar la contraseña vencen a las 24 horas y solo sirven una vez; cambiar la contraseña con uno de ellos también levanta un bloqueo por intentos fallidos. Las cuentas desactivadas no reciben enlace de recuperación.
+
+Rutas del frontend que usan los correos: `/account/set-password?userId=&token=`, `/account/reset-password?userId=&token=` e `/invitations/{token}`.
+
 ### PostgreSQL local sin Docker
 
 - **Windows:** doble clic en `scripts/windows/feria-db.cmd`. Detecta si PostgreSQL está instalado (si no, ofrece instalarlo con `winget`).
 - **macOS:** doble clic en `scripts/macos/feria-db.command` (la primera vez, clic derecho → Abrir). Mismo menú que en Windows, usando Homebrew: instala PostgreSQL 17 si falta. El usuario es el de tu sistema y por defecto no lleva contraseña.
 
 Ambos scripts dan el mismo menú: iniciar/parar el servicio, listar tablas, abrir `psql`, copiar el connection string, actualizar `dotnet user-secrets`, reiniciar la base e instalar PostgreSQL.
+
+## Asistencia con código QR
+
+El backend genera el QR de cada inscrito y registra la asistencia; el frontend dibuja el QR y usa la cámara.
+
+1. La persona se inscribe (`POST /api/events/{id}/registrations`). La respuesta trae `qrToken`: **ese texto es exactamente lo que debe llevar el QR** (el frontend lo dibuja). Es único por persona y por evento, y no se puede adivinar. Inscribirse de nuevo devuelve el mismo QR. La respuesta incluye también los datos básicos del perfil (`fullName`, `email`).
+2. En la puerta, el coordinador (o un profesor) del evento, o el súper admin, escanea el QR con la cámara y manda el texto leído a `POST /api/events/{id}/attendance/scan` con `{ "qrToken": "..." }`.
+3. La respuesta siempre es clara para la pantalla de la puerta:
+
+| `outcome` | Significa |
+| --- | --- |
+| `Valid` | Primera lectura: la asistencia quedó registrada (con fecha, hora y quién validó). |
+| `AlreadyEntered` | Esa persona ya había ingresado: no se duplica y se devuelve la hora del primer ingreso. |
+| `Invalid` | El QR no existe, es de otro evento o la inscripción fue cancelada. |
+
+La respuesta incluye `attendeeName` y `enteredAt` para mostrar quién es. Dos lectores escaneando el mismo QR a la vez producen una sola asistencia (índice único en la base). Solo se inscribe y se toma asistencia mientras el evento está publicado o en curso.
+
+**Cupos:** un evento puede tener `capacity` (opcional; sin valor es ilimitado). Si ya no quedan cupos, inscribirse responde 400 (`The event is full`). Solo las inscripciones no canceladas ocupan cupo. `GET /api/events` devuelve `capacity`, `registered` y `availableSeats`. El súper admin lo define al crear el evento o con `PUT /api/events/{id}/capacity` (`{ "capacity": 100 }`, `null` quita el límite; no puede ser menor que los inscritos actuales).
+
+| Método y ruta | Quién | Para |
+| --- | --- | --- |
+| `POST /api/events/{id}/registrations` | Con sesión | Inscribirse y obtener el QR. |
+| `GET /api/events/{id}/registrations/me` | Con sesión | Mi inscripción: `qrToken` y si ya ingresé (`enteredAt`). |
+| `POST /api/events/{id}/attendance/scan` | Súper admin, coordinador o profesor del evento | Registrar asistencia con el QR leído. |
+| `GET /api/events/{id}/attendance/summary` | Súper admin, coordinador o profesor del evento | `registered`, `entered`, `pending` y `lastEntryAt`; el frontend lo consulta cada pocos segundos para ver la afluencia. Las inscripciones canceladas no cuentan. |
+
+## Envío de trabajos (EP-02)
+
+**Participación.** Al aceptar una invitación de estudiante (`Participant`) se crea su participación en el evento, enlazada a esa invitación. El `participationId` que pide `POST /api/works` es el de esa participación: `GET /api/events/{id}/participations/me` lo devuelve junto con `invitedBy`, el profesor que invitó (404 si la persona no participa en el evento).
+
+**Revisor.** `POST /api/works` recibe el `professorId` del revisor. Las personas que pueden elegirse salen de `GET /api/events/{id}/professors` (quienes tienen el rol `Teacher` en el evento).
+
+**Archivos (HU-010).** `POST /api/works/{id}/artifacts/file` recibe un formulario `multipart/form-data` con `type` y `file`. Se valida el formato (PDF), el tamaño (10 MB), que el trabajo sea borrador y que no haya pasado el plazo; el archivo se guarda en disco y queda como una versión nueva del artefacto. La carpeta se define con `Storage:Path` (por defecto `uploads/`, ignorada por git). Los enlaces siguen entrando por `POST /api/works/{id}/artifacts`.
+
+**Plazo (HU-013).** `GET /api/events` devuelve `submissionDeadline`: el fin de la etapa de recepción (`null` si no hay plazo). Después de esa fecha no se puede crear, adjuntar, enviar ni retirar un trabajo enviado.
+
+| Método y ruta | Quién | Para |
+| --- | --- | --- |
+| `GET /api/events/{id}/participations/me` | Con sesión | Mi participación en el evento (`id`, `invitedBy`). |
+| `GET /api/events/{id}/professors` | Con sesión | Profesores del evento (`id`, `fullName`). |
+| `POST /api/works/{id}/artifacts/file` | Autor del trabajo | Subir un archivo como nueva versión de un artefacto. |
+
+## Versión final, informe del evento y certificados
+
+**Versión final (HU-030).** Cuando el profesor aprueba un trabajo (`Admitted`), su autor sube la versión definitiva con `POST /api/works/{id}/final-version` y `{ "fileUrl", "fileName", "fileSizeBytes" }`. Se valida el formato (PDF) y el tamaño (10 MB) y el documento queda marcado como definitivo (`isFinal` en `GET /api/works/{id}`). Solo hay una versión final por trabajo.
+
+**Informe del evento (HU-032).** El informe es HTML libre que arma el súper admin (texto, estilos, imágenes en línea con `data:`). El PDF es esa misma página; el servidor no descarga imágenes ni hojas de estilo externas.
+
+**Certificados (HU-061).** Solo se descargan cuando el evento terminó (`Closed` o `Archived`). Certificado de asistencia: la persona tiene asistencia registrada por QR. Certificado de participación: es autora de un trabajo con versión final. Se emite la primera vez que se descarga y después se devuelve el mismo código.
+
+| Método y ruta | Quién | Para |
+| --- | --- | --- |
+| `POST /api/works/{id}/final-version` | Autor del trabajo | Subir la versión final. |
+| `GET` · `PUT /api/events/{id}/report` | Súper admin | Leer o guardar el HTML del informe. |
+| `GET /api/events/{id}/report/pdf` | Súper admin | Descargar el informe en PDF. |
+| `POST /api/events/{id}/close` | Súper admin | Terminar el evento (habilita los certificados y cierra inscripciones). |
+| `GET /api/certificates/mine` | Con sesión | «Mis certificados»: `type`, `available` y `code` si ya se emitió. |
+| `GET /api/certificates/events/{eventId}/{Attendance\|Participation}/pdf` | Con sesión | Descargar el certificado en PDF. |
+
+Los PDF usan PDFsharp y HtmlRenderer (MIT/BSD) y necesitan una fuente sans-serif instalada (Arial en Windows; Liberation o DejaVu en Linux).
 
 ## Estructura
 
@@ -37,7 +152,8 @@ src/
 ├── FeriaAcademica.Domain          Entidades, enums y reglas de negocio. No depende de nadie.
 └── FeriaAcademica.Infrastructure  EF Core, repositorios, Identity. Implementa las interfaces de Application y Domain.
 tests/
-└── FeriaAcademica.Domain.Tests    Pruebas de las reglas del dominio (xUnit).
+├── FeriaAcademica.Domain.Tests    Pruebas de las reglas del dominio (xUnit).
+└── FeriaAcademica.Api.Tests       Pruebas de integración: la API real sobre SQLite en memoria (no necesitan PostgreSQL).
 ```
 
 ### Dónde va cada cosa

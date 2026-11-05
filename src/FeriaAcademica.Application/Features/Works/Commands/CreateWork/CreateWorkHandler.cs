@@ -6,8 +6,7 @@ using Mediator;
 
 namespace FeriaAcademica.Application.Features.Works.Commands.CreateWork;
 
-internal sealed class CreateWorkHandler(
-    IParticipationRepository participations, IInvitationRepository invitations, IAcademicEventRepository events, IWorkRepository works, IUnitOfWork uow)
+internal sealed class CreateWorkHandler(IParticipationRepository participations, IAcademicEventRepository events, IWorkRepository works, IUnitOfWork uow)
     : ICommandHandler<CreateWorkCommand, Guid>
 {
     public async ValueTask<Guid> Handle(CreateWorkCommand c, CancellationToken ct)
@@ -18,11 +17,8 @@ internal sealed class CreateWorkHandler(
         participation.EnsureOwnedBy(c.AuthorId);
         var academicEvent = await events.GetAsync(participation.EventId, ct) ?? throw new DomainException("Event not found.");
 
-        var invitation = participation.InvitationId is { } invitationId ? await invitations.GetAsync(invitationId, ct) : null;
-        var professorId = invitation?.SenderId ?? throw new DomainException("The participation has no professor to review its works.");
-
         var summary = string.IsNullOrWhiteSpace(c.Summary) ? null : c.Summary.Trim();
-        var work = Work.Create(participation.Id, professorId, c.Title, summary, academicEvent.MaxRejections, c.AuthorId, DateTime.UtcNow,
+        var work = Work.Create(participation.Id, c.ProfessorId, c.Title, summary, academicEvent.MaxRejections, c.AuthorId, DateTime.UtcNow,
             academicEvent.SubmissionDeadline);
         await works.AddAsync(work, ct);
         await uow.SaveChangesAsync(ct);

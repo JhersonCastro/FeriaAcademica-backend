@@ -43,6 +43,7 @@ internal sealed class CertificateConfiguration : IEntityTypeConfiguration<Certif
         b.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId);
         b.HasOne<Work>().WithMany().HasForeignKey(x => x.WorkId);
         b.HasIndex(x => x.Code).IsUnique();
+        b.HasIndex(x => new { x.EventId, x.UserId, x.Type }).IsUnique();   // each person gets one certificate of each type per event
     }
 }
 

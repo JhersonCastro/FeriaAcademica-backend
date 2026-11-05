@@ -5,6 +5,7 @@ namespace FeriaAcademica.Domain.Works;
 public enum ArtifactType { Document, Poster, Presentation, Video, Code, Other }
 public enum QueueStatus { Pending, InReview, Resolved, Withdrawn }
 public enum ReviewResult { Admitted, Rejected, DefinitiveRejection }
+public enum ReviewDecision { Approved, ApprovedWithChanges, Rejected }
 
 public sealed class Artifact : Entity
 {
@@ -14,14 +15,15 @@ public sealed class Artifact : Entity
     public string? FileUrl { get; private set; }
     public string? LinkUrl { get; private set; }
     public DateTime UploadedAt { get; private set; }
+    public bool IsFinal { get; private set; }   // the definitive version delivered once the work is approved
 
     private Artifact() { } // EF Core
 
-    internal Artifact(Guid workId, ArtifactType type, int version, string? fileUrl, string? linkUrl, DateTime uploadedAt)
+    internal Artifact(Guid workId, ArtifactType type, int version, string? fileUrl, string? linkUrl, DateTime uploadedAt, bool isFinal = false)
     {
         if (string.IsNullOrWhiteSpace(fileUrl) == string.IsNullOrWhiteSpace(linkUrl))
             throw new DomainException("An artifact needs exactly one of a file or a link.");
-        WorkId = workId; Type = type; Version = version; FileUrl = fileUrl; LinkUrl = linkUrl; UploadedAt = uploadedAt;
+        WorkId = workId; Type = type; Version = version; FileUrl = fileUrl; LinkUrl = linkUrl; UploadedAt = uploadedAt; IsFinal = isFinal;
     }
 }
 

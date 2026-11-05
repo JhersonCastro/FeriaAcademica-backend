@@ -2,5 +2,8 @@ using Mediator;
 
 namespace FeriaAcademica.Application.Features.Invitations.Commands.AcceptInvitation;
 
-/// <summary>Accepts a participant invitation and returns the participation that the user's works hang from.</summary>
-public sealed record AcceptInvitationCommand(string Token, Guid UserId, string UserEmail) : ICommand<Guid>;
+/// <summary>
+/// An invited person with an account must be signed in as that account (<paramref name="CurrentUserId"/>).
+/// One without an account creates it here with <paramref name="FullName"/> and <paramref name="Password"/>.
+/// </summary>
+public sealed record AcceptInvitationCommand(string Token, Guid? CurrentUserId, string? FullName, string? Password) : ICommand<Unit>;

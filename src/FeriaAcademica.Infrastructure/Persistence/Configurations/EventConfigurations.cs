@@ -25,6 +25,7 @@ internal sealed class AcademicEventConfiguration : IEntityTypeConfiguration<Acad
         b.ToTable("Events", t =>
         {
             t.HasCheckConstraint("CK_Events_MaxRejections", "\"MaxRejections\" >= 1");
+            t.HasCheckConstraint("CK_Events_Capacity", "\"Capacity\" IS NULL OR \"Capacity\" >= 1");
             t.HasCheckConstraint("CK_Events_Weights", "ABS(\"JuryWeight\" + \"AttendeeWeight\" - 1.0) < 1e-9");
             t.HasCheckConstraint("CK_Events_CancellationReason", "\"Status\" <> 'Cancelled' OR \"CancellationReason\" IS NOT NULL");
         });
@@ -80,5 +81,17 @@ internal sealed class ParticipationConfiguration : IEntityTypeConfiguration<Part
         b.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId);
         b.HasOne<Invitation>().WithMany().HasForeignKey(x => x.InvitationId);
         b.HasIndex(x => new { x.EventId, x.UserId }).IsUnique();
+    }
+}
+
+internal sealed class EventReportConfiguration : IEntityTypeConfiguration<EventReport>
+{
+    public void Configure(EntityTypeBuilder<EventReport> b)
+    {
+        b.ToTable("EventReports");
+        b.Property(x => x.Html).IsRequired();
+        b.HasOne<AcademicEvent>().WithMany().HasForeignKey(x => x.EventId);
+        b.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UpdatedBy);
+        b.HasIndex(x => x.EventId).IsUnique();   // one report per event
     }
 }

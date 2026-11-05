@@ -22,6 +22,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<EventTemplate> EventTemplates => Set<EventTemplate>();
     public DbSet<AcademicEvent> Events => Set<AcademicEvent>();
     public DbSet<EventStage> EventStages => Set<EventStage>();
+    public DbSet<EventReport> EventReports => Set<EventReport>();
     public DbSet<RoleAssignment> RoleAssignments => Set<RoleAssignment>();
     public DbSet<Invitation> Invitations => Set<Invitation>();
     public DbSet<Participation> Participations => Set<Participation>();
@@ -44,7 +45,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     protected override void ConfigureConventions(ModelConfigurationBuilder c)
     {
         // Every state/kind enum is stored as text, as in the schema (text columns, not numbers).
-        var enums = typeof(Entity).Assembly.GetTypes().Where(t => t.IsEnum).Append(typeof(UserStatus));
+        var enums = typeof(Entity).Assembly.GetTypes().Where(t => t.IsEnum);
         foreach (var e in enums) c.Properties(e).HaveConversion(typeof(string)).HaveMaxLength(30);
     }
 
