@@ -2,6 +2,7 @@ using FeriaAcademica.Domain.Common;
 
 namespace FeriaAcademica.Domain.Events;
 
+/// <summary>A reusable configuration (stages, roles, instruments, parameters) that an event copies when it is created; without institution it is global.</summary>
 public sealed class EventTemplate : Entity
 {
     public Guid? InstitutionId { get; private set; }   // null = global template

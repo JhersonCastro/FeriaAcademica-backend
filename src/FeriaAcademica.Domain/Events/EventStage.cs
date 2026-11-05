@@ -3,8 +3,10 @@ using FeriaAcademica.Domain.Common;
 namespace FeriaAcademica.Domain.Events;
 
 public enum StageType { Configuration, Call, Nomination, Reception, Admission, Registration, Evaluation, Results, Publication }
+/// <summary>A stage is Disabled when the event does not use it; otherwise it is Scheduled, Open or Closed.</summary>
 public enum StageStatus { Disabled, Scheduled, Open, Closed }
 
+/// <summary>One phase of an event (call, reception, evaluation...) with its dates; it is created and scheduled only through <see cref="AcademicEvent"/>.</summary>
 public sealed class EventStage : Entity
 {
     public Guid EventId { get; private set; }
