@@ -5,12 +5,15 @@ using FeriaAcademica.Domain.Works;
 namespace FeriaAcademica.Domain.Registrations;
 
 public enum RegistrationStatus { Registered, Cancelled }
-public enum CertificateType { Attendance, Participation }
+public enum CertificateType { Attendance, Participation, Recognition }
 
+/// <summary>What scanning a QR code at the door produced.</summary>
 public enum CheckInOutcome { Entered, AlreadyEntered, RegistrationCancelled }
 
+/// <summary>The outcome of a scan and, when there is one, the attendance it refers to.</summary>
 public sealed record CheckInResult(CheckInOutcome Outcome, Attendance? Attendance);
 
+/// <summary>A person's sign-up to an event; its unguessable QR token is what gets scanned at the door.</summary>
 public sealed class Registration : Entity
 {
     public Guid EventId { get; private set; }
@@ -38,6 +41,7 @@ public sealed class Registration : Entity
     }
 }
 
+/// <summary>The record that a registered person came in; the first valid scan creates it, and there is one per registration.</summary>
 public sealed class Attendance : Entity
 {
     public Guid RegistrationId { get; private set; }
@@ -61,12 +65,15 @@ public static class AttendancePolicy
 }
 
 /// <summary>
-/// Who may download a certificate: only once the event is over, and only a person who attended (attendance certificate)
-/// or who delivered the final version of their work (participation certificate).
+/// Who may download a certificate: only once the event is over, and only a person who attended (attendance certificate),
+/// who delivered the final version of their work (participation certificate) or who helped run the event as a
+/// coordinator, teacher or jury member (recognition certificate).
 /// </summary>
 public static class CertificateEligibility
 {
-    public static void EnsureCanDownload(CertificateType type, AcademicEvent academicEvent, bool attended, Work? workWithFinalVersion)
+    public static readonly IReadOnlyList<EventRole> RecognizedRoles = [EventRole.Coordinator, EventRole.Teacher, EventRole.Jury];
+
+    public static void EnsureCanDownload(CertificateType type, AcademicEvent academicEvent, bool attended, Work? workWithFinalVersion, IReadOnlyCollection<EventRole>? eventRoles = null)
     {
         if (!academicEvent.IsFinished) throw new DomainException("Certificates are available once the event has finished.");
         switch (type)
@@ -75,10 +82,13 @@ public static class CertificateEligibility
                 throw new DomainException("An attendance certificate requires having attended the event.");
             case CertificateType.Participation when workWithFinalVersion is null || !workWithFinalVersion.HasFinalVersion:
                 throw new DomainException("A participation certificate requires a work with its final version delivered.");
+            case CertificateType.Recognition when eventRoles is null || !eventRoles.Any(RecognizedRoles.Contains):
+                throw new DomainException("A recognition certificate requires being a coordinator, teacher or jury member of the event.");
         }
     }
 }
 
+/// <summary>A certificate issued once, with a unique code; participation certificates reference the work.</summary>
 public sealed class Certificate : Entity
 {
     public Guid EventId { get; private set; }

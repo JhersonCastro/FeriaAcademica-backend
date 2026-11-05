@@ -107,6 +107,22 @@ La respuesta incluye `attendeeName` y `enteredAt` para mostrar quién es. Dos le
 | `POST /api/events/{id}/attendance/scan` | Súper admin, coordinador o profesor del evento | Registrar asistencia con el QR leído. |
 | `GET /api/events/{id}/attendance/summary` | Súper admin, coordinador o profesor del evento | `registered`, `entered`, `pending` y `lastEntryAt`; el frontend lo consulta cada pocos segundos para ver la afluencia. Las inscripciones canceladas no cuentan. |
 
+## Envío de trabajos (EP-02)
+
+**Participación.** Al aceptar una invitación de estudiante (`Participant`) se crea su participación en el evento, enlazada a esa invitación. El `participationId` que pide `POST /api/works` es el de esa participación: `GET /api/events/{id}/participations/me` lo devuelve junto con `invitedBy`, el profesor que invitó (404 si la persona no participa en el evento).
+
+**Revisor.** `POST /api/works` recibe el `professorId` del revisor. Las personas que pueden elegirse salen de `GET /api/events/{id}/professors` (quienes tienen el rol `Teacher` en el evento).
+
+**Archivos (HU-010).** `POST /api/works/{id}/artifacts/file` recibe un formulario `multipart/form-data` con `type` y `file`. Se valida el formato (PDF), el tamaño (10 MB), que el trabajo sea borrador y que no haya pasado el plazo; el archivo se guarda en disco y queda como una versión nueva del artefacto. La carpeta se define con `Storage:Path` (por defecto `uploads/`, ignorada por git). Los enlaces siguen entrando por `POST /api/works/{id}/artifacts`.
+
+**Plazo (HU-013).** `GET /api/events` devuelve `submissionDeadline`: el fin de la etapa de recepción (`null` si no hay plazo). Después de esa fecha no se puede crear, adjuntar, enviar ni retirar un trabajo enviado.
+
+| Método y ruta | Quién | Para |
+| --- | --- | --- |
+| `GET /api/events/{id}/participations/me` | Con sesión | Mi participación en el evento (`id`, `invitedBy`). |
+| `GET /api/events/{id}/professors` | Con sesión | Profesores del evento (`id`, `fullName`). |
+| `POST /api/works/{id}/artifacts/file` | Autor del trabajo | Subir un archivo como nueva versión de un artefacto. |
+
 ## Versión final, informe del evento y certificados
 
 **Versión final (HU-030).** Cuando el profesor aprueba un trabajo (`Admitted`), su autor sube la versión definitiva con `POST /api/works/{id}/final-version` y `{ "fileUrl", "fileName", "fileSizeBytes" }`. Se valida el formato (PDF) y el tamaño (10 MB) y el documento queda marcado como definitivo (`isFinal` en `GET /api/works/{id}`). Solo hay una versión final por trabajo.
@@ -123,7 +139,7 @@ La respuesta incluye `attendeeName` y `enteredAt` para mostrar quién es. Dos le
 | `worksWithdrawn` | Cancelados por su autor. |
 | `registered` · `attended` | Inscritos activos y cuántos de ellos ingresaron. |
 
-**Certificados (HU-061).** Solo se descargan cuando el evento terminó (`Closed` o `Archived`). Certificado de asistencia: la persona tiene asistencia registrada por QR. Certificado de participación: es autora de un trabajo con versión final. Se emite la primera vez que se descarga y después se devuelve el mismo código.
+**Certificados (HU-060, HU-061).** Solo se descargan cuando el evento terminó (`Closed` o `Archived`). Certificado de asistencia: la persona tiene asistencia registrada por QR. Certificado de participación: es autora de un trabajo con versión final. Certificado de reconocimiento: tiene rol de coordinador, profesor o jurado en el evento. Se emite la primera vez que se descarga y después se devuelve el mismo código.
 
 | Método y ruta | Quién | Para |
 | --- | --- | --- |
@@ -133,9 +149,18 @@ La respuesta incluye `attendeeName` y `enteredAt` para mostrar quién es. Dos le
 | `GET /api/events/{id}/report/pdf` | Súper admin | Descargar el informe en PDF. |
 | `POST /api/events/{id}/close` | Súper admin | Terminar el evento (habilita los certificados y cierra inscripciones). |
 | `GET /api/certificates/mine` | Con sesión | «Mis certificados»: `type`, `available` y `code` si ya se emitió. |
-| `GET /api/certificates/events/{eventId}/{Attendance\|Participation}/pdf` | Con sesión | Descargar el certificado en PDF. |
+| `GET /api/certificates/events/{eventId}/{Attendance\|Participation\|Recognition}/pdf` | Con sesión | Descargar el certificado en PDF. |
 
 Los PDF usan PDFsharp y HtmlRenderer (MIT/BSD) y necesitan una fuente sans-serif instalada (Arial en Windows; Liberation o DejaVu en Linux).
+
+## Seguridad (HU-080)
+
+- **Contraseñas:** Identity las guarda como hash PBKDF2 con sal aleatoria; nunca se guardan tal como se escriben.
+- **HTTPS:** fuera de `Development`, la API redirige HTTP a HTTPS, envía HSTS y marca la cookie como `Secure`.
+- **Sesión:** cookie `feria.auth`, `HttpOnly`, con un ticket cifrado que vence tras 8 horas sin uso.
+- **CORS:** solo acepta llamadas con cookie desde `Frontend:BaseUrl`. En producción, esa dirección debe ser la HTTPS del frontend.
+
+En `Development` el perfil `http` sigue siendo el predeterminado: un frontend en `http://localhost:4200` no enviaría la cookie `SameSite=Lax` a una API en `https://`. Si la API se despliega detrás de un proxy que termina el HTTPS, hay que añadir encabezados reenviados (forwarded headers) y definir `ASPNETCORE_HTTPS_PORT`.
 
 ## Estructura
 
@@ -150,6 +175,8 @@ tests/
 ├── FeriaAcademica.Domain.Tests    Pruebas de las reglas del dominio (xUnit).
 └── FeriaAcademica.Api.Tests       Pruebas de integración: la API real sobre SQLite en memoria (no necesitan PostgreSQL).
 ```
+
+El mapa de módulos, cómo viaja una petición, dónde vive cada regla y qué cubren las pruebas están en [docs/arquitectura.md](docs/arquitectura.md).
 
 ### Dónde va cada cosa
 

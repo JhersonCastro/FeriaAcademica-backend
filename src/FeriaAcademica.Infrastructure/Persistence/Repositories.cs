@@ -2,6 +2,8 @@ using FeriaAcademica.Application.Features.Attendance.Queries.GetAttendanceSummar
 using FeriaAcademica.Application.Features.Certificates.Queries.ListMyCertificates;
 using FeriaAcademica.Application.Features.Events.Queries.GetEventReport;
 using FeriaAcademica.Application.Features.Events.Queries.GetEventSummary;
+using FeriaAcademica.Application.Features.Events.Queries.GetMyParticipation;
+using FeriaAcademica.Application.Features.Events.Queries.ListEventProfessors;
 using FeriaAcademica.Application.Features.Events.Queries.ListEvents;
 using FeriaAcademica.Application.Features.Invitations.Queries.GetInvitation;
 using FeriaAcademica.Application.Features.Notifications.Queries.ListMyNotifications;
@@ -40,9 +42,12 @@ internal sealed class EventReadModel(AppDbContext db) : IEventReadModel
             {
                 e.Id, e.InstitutionId, e.Name, e.Status, e.StartDate, e.EndDate, e.Capacity,
                 Registered = db.Registrations.Count(r => r.EventId == e.Id && r.Status == RegistrationStatus.Registered),
+                SubmissionDeadline = db.EventStages
+                    .Where(s => s.EventId == e.Id && s.Type == StageType.Reception && s.Status != StageStatus.Disabled)
+                    .Select(s => s.EndDate).FirstOrDefault(),
             })
             .Select(e => new EventDto(e.Id, e.InstitutionId, e.Name, e.Status.ToString(), e.StartDate, e.EndDate,
-                e.Capacity, e.Registered, e.Capacity == null ? null : Math.Max(0, e.Capacity.Value - e.Registered)))
+                e.Capacity, e.Registered, e.Capacity == null ? null : Math.Max(0, e.Capacity.Value - e.Registered), e.SubmissionDeadline))
             .ToListAsync(ct);
 }
 
@@ -289,6 +294,31 @@ internal sealed class AssignedWorkReadModel(AppDbContext db) : IAssignedWorkRead
 internal sealed class ParticipationRepository(AppDbContext db) : IParticipationRepository
 {
     public Task<Participation?> GetAsync(Guid id, CancellationToken ct) => db.Participations.FirstOrDefaultAsync(p => p.Id == id, ct);
+
+    public Task<Participation?> GetByEventAndUserAsync(Guid eventId, Guid userId, CancellationToken ct) =>
+        db.Participations.FirstOrDefaultAsync(p => p.EventId == eventId && p.UserId == userId, ct);
+
+    public async Task AddAsync(Participation participation, CancellationToken ct) => await db.Participations.AddAsync(participation, ct);
+}
+
+internal sealed class ParticipationReadModel(AppDbContext db) : IParticipationReadModel
+{
+    public Task<ParticipationDto?> GetAsync(Guid eventId, Guid userId, CancellationToken ct) =>
+        (from p in db.Participations.AsNoTracking()
+         where p.EventId == eventId && p.UserId == userId
+         select new ParticipationDto(p.Id, p.EventId, db.Invitations.Where(i => i.Id == p.InvitationId).Select(i => i.SenderId).FirstOrDefault()))
+        .FirstOrDefaultAsync(ct);
+}
+
+internal sealed class EventProfessorReadModel(AppDbContext db) : IEventProfessorReadModel
+{
+    public async Task<IReadOnlyList<ProfessorDto>> ListAsync(Guid eventId, CancellationToken ct) =>
+        await (from r in db.RoleAssignments.AsNoTracking()
+               join u in db.Users on r.UserId equals u.Id
+               where r.EventId == eventId && r.Role == EventRole.Teacher
+               orderby u.FullName
+               select new ProfessorDto(u.Id, u.FullName))
+            .ToListAsync(ct);
 }
 
 internal sealed class NotificationRepository(AppDbContext db) : INotificationRepository
@@ -367,6 +397,14 @@ internal sealed class CertificateReadModel(AppDbContext db) : ICertificateReadMo
                 select new { EventId = e.Id, EventName = e.Name, e.Status, WorkId = w.Id, WorkTitle = w.Title })
             .ToListAsync(ct);
 
+        var roles = await (
+                from r in db.RoleAssignments.AsNoTracking()
+                join e in db.Events on r.EventId equals e.Id
+                where r.UserId == userId
+                select new { EventId = e.Id, EventName = e.Name, e.Status, r.Role })
+            .ToListAsync(ct);
+        var recognized = roles.Where(r => CertificateEligibility.RecognizedRoles.Contains(r.Role)).DistinctBy(r => r.EventId);
+
         var issued = await db.Certificates.AsNoTracking().Where(c => c.UserId == userId).ToListAsync(ct);
         string? CodeOf(Guid eventId, CertificateType type) => issued.FirstOrDefault(c => c.EventId == eventId && c.Type == type)?.Code;
         static bool Finished(EventStatus status) => status is EventStatus.Closed or EventStatus.Archived;
@@ -376,6 +414,8 @@ internal sealed class CertificateReadModel(AppDbContext db) : ICertificateReadMo
                 CodeOf(x.EventId, CertificateType.Attendance)))
             .Concat(participated.Select(x => new MyCertificateDto(x.EventId, x.EventName, nameof(CertificateType.Participation), x.WorkId, x.WorkTitle,
                 Finished(x.Status), CodeOf(x.EventId, CertificateType.Participation))))
+            .Concat(recognized.Select(x => new MyCertificateDto(x.EventId, x.EventName, nameof(CertificateType.Recognition), null, null, Finished(x.Status),
+                CodeOf(x.EventId, CertificateType.Recognition))))
             .OrderBy(c => c.EventName).ThenBy(c => c.Type)
             .ToList();
     }

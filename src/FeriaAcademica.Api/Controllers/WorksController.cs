@@ -3,6 +3,7 @@ using FeriaAcademica.Application.Features.Works.Commands.AddArtifact;
 using FeriaAcademica.Application.Features.Works.Commands.CreateWork;
 using FeriaAcademica.Application.Features.Works.Commands.SubmitFinalVersion;
 using FeriaAcademica.Application.Features.Works.Commands.SubmitWork;
+using FeriaAcademica.Application.Features.Works.Commands.UploadArtifactFile;
 using FeriaAcademica.Application.Features.Works.Commands.WithdrawWork;
 using FeriaAcademica.Application.Features.Works.Queries.GetWork;
 using FeriaAcademica.Application.Features.Works.Queries.ListMyWorks;
@@ -46,6 +47,15 @@ public class WorksController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> AddArtifact(Guid id, AddArtifactRequest r, CancellationToken ct)
     {
         var artifact = await mediator.Send(new AddArtifactCommand(id, UserId, r.Type, r.LinkUrl, r.FileUrl, r.FileName, r.FileSizeBytes), ct);
+        return Created($"/api/works/{id}", artifact);
+    }
+
+    /// <summary>Uploads a file (multipart form with <c>type</c> and <c>file</c>) as a new version of the artifact of that type; see <see cref="ArtifactFileRules"/> for the accepted formats and size.</summary>
+    [HttpPost("{id:guid}/artifacts/file"), RequestSizeLimit(ArtifactFileRules.MaxSizeBytes + 1024 * 1024)]
+    public async Task<IActionResult> UploadArtifactFile(Guid id, [FromForm] ArtifactType type, IFormFile file, CancellationToken ct)
+    {
+        await using var content = file.OpenReadStream();
+        var artifact = await mediator.Send(new UploadArtifactFileCommand(id, UserId, type, file.FileName, file.Length, content), ct);
         return Created($"/api/works/{id}", artifact);
     }
 

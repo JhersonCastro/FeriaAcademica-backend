@@ -5,6 +5,7 @@ namespace FeriaAcademica.Domain.Evaluation;
 public enum InstrumentType { Rubric, Rating, Survey }
 public enum EvaluatorGroup { Jury, Attendees }
 
+/// <summary>A scoring instrument of an event (rubric, rating or survey) for one group of evaluators, made of criteria.</summary>
 public sealed class Instrument : Entity
 {
     private readonly List<Criterion> _criteria = [];
@@ -33,6 +34,7 @@ public sealed class Instrument : Entity
     }
 }
 
+/// <summary>One scored item of an instrument, with its weight and scale.</summary>
 public sealed class Criterion : Entity
 {
     public Guid InstrumentId { get; private set; }
@@ -58,6 +60,7 @@ public sealed class Criterion : Entity
     }
 }
 
+/// <summary>An evaluator's score for one criterion of a work; it must fall inside the criterion's scale.</summary>
 public sealed class Response : Entity
 {
     public Guid CriterionId { get; private set; }

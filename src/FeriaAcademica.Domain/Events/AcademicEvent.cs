@@ -2,8 +2,10 @@ using FeriaAcademica.Domain.Common;
 
 namespace FeriaAcademica.Domain.Events;
 
+/// <summary>Lifecycle of an event, from Configuration to Closed, Archived or Cancelled.</summary>
 public enum EventStatus { Configuration, Published, InProgress, Closed, Archived, Cancelled }
 
+/// <summary>A fair: its stages, capacity, rejection limit and scoring weights. The end of its Reception stage is the submission deadline for works.</summary>
 public sealed class AcademicEvent : Entity
 {
     public const string DefaultTieBreakRulesJson = """["jury","attendees","submission_date"]""";
