@@ -23,7 +23,7 @@ namespace FeriaAcademica.Api.Tests;
 /// The real API (controllers, Mediator, Identity cookie, EF Core) on an in-memory SQLite database, so the tests need no PostgreSQL.
 /// Each factory is its own empty database; tests arrange their data through <see cref="Arrange"/>.
 /// </summary>
-public sealed class ApiFactory : WebApplicationFactory<Program>
+public class ApiFactory : WebApplicationFactory<Program>
 {
     public const string AdminEmail = "admin@feria.test";
     public const string Password = "Passw0rd!2026";
@@ -44,6 +44,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("SuperAdmin:Email", AdminEmail);
         builder.UseSetting("SuperAdmin:Password", Password);
         builder.UseSetting("SuperAdmin:FullName", "Administración");
+        builder.UseSetting("https_port", "443");   // the test server has no HTTPS endpoint from which the redirect could learn it
 
         builder.ConfigureTestServices(services =>
         {
@@ -64,6 +65,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
 
     /// <summary>A client that keeps the session cookie (the API only sends it over HTTPS outside Development).</summary>
     public HttpClient NewClient() => CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost"), HandleCookies = true });
+
+    /// <summary>A client on the given address that does not follow redirects, to look at the transport itself.</summary>
+    public HttpClient NewRawClient(string baseAddress) => CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri(baseAddress), AllowAutoRedirect = false });
 
     public async Task<HttpClient> LoginAsync(string email, string password = Password)
     {
