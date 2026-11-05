@@ -71,6 +71,8 @@ Las cuentas nacen de dos formas:
 | `POST /api/events/{id}/invitations` | Profesor del evento | Invitar a un estudiante (`Participant`) o invitado (`Attendee`). |
 | `GET /api/invitations/{token}` · `POST /api/invitations/{token}/accept` | Todos | Ver y aceptar una invitación. |
 
+Los enlaces de definir o recuperar la contraseña vencen a las 24 horas y solo sirven una vez; cambiar la contraseña con uno de ellos también levanta un bloqueo por intentos fallidos. Las cuentas desactivadas no reciben enlace de recuperación.
+
 Rutas del frontend que usan los correos: `/account/set-password?userId=&token=`, `/account/reset-password?userId=&token=` e `/invitations/{token}`.
 
 ### PostgreSQL local sin Docker
