@@ -33,7 +33,9 @@ builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
 // The super admin is the only global role; every other role belongs to an event.
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(AppClaims.SuperAdminPolicy, p => p.RequireAuthenticatedUser().RequireClaim(AppClaims.SuperAdmin, "true"));
-builder.Services.AddCors(o => o.AddDefaultPolicy(p => p.WithOrigins("http://localhost:4200").AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
+// Only the configured frontend may call the API with the session cookie, so production can point it at its HTTPS address.
+var frontendOrigin = (config["Frontend:BaseUrl"] ?? "http://localhost:4200").TrimEnd('/');
+builder.Services.AddCors(o => o.AddDefaultPolicy(p => p.WithOrigins(frontendOrigin).AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
 
 var app = builder.Build();
 
