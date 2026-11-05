@@ -1,4 +1,6 @@
 using PdfSharp.Fonts;
+using System.Runtime.CompilerServices;
+using TheArtOfDev.HtmlRenderer.PdfSharp;
 
 namespace FeriaAcademica.Infrastructure.Pdf;
 
@@ -27,7 +29,13 @@ internal sealed class SystemFontResolver : IFontResolver
 
     public static void Register()
     {
-        if (GlobalFontSettings.FontResolver is null) GlobalFontSettings.FontResolver = new SystemFontResolver();
+        // HtmlRenderer installs its own resolver the first time it is used and PDFsharp refuses to replace a resolver once it has
+        // been used (for example by a certificate). Initialising HtmlRenderer first and installing ours afterwards, before any
+        // font is drawn, keeps a single resolver for both the certificates and the HTML reports.
+        var adapter = typeof(HtmlContainer).Assembly.GetType("TheArtOfDev.HtmlRenderer.PdfSharp.Adapters.PdfSharpAdapter")
+            ?? throw new InvalidOperationException("HtmlRenderer's PDFsharp adapter was not found.");
+        RuntimeHelpers.RunClassConstructor(adapter.TypeHandle);
+        GlobalFontSettings.FontResolver = new SystemFontResolver();
     }
 
     public FontResolverInfo? ResolveTypeface(string familyName, bool isBold, bool isItalic) =>
