@@ -15,11 +15,12 @@ internal sealed class DecideReviewHandler(
 
     public async ValueTask<Unit> Handle(DecideReviewCommand c, CancellationToken ct)
     {
-        if (!Enum.IsDefined(c.Decision)) throw new DomainException("The decision must be Approved, ApprovedWithChanges or Rejected.");
+        // Nullable on purpose: a request without a decision must not fall back to the enum's default, which is Approved.
+        if (c.Decision is not { } decision || !Enum.IsDefined(decision)) throw new DomainException("The decision must be Approved, ApprovedWithChanges or Rejected.");
 
         var work = await works.GetAsync(c.WorkId, ct) ?? throw new DomainException("Work not found.");
         var now = DateTime.UtcNow;
-        work.Decide(c.ReviewerId, c.Decision, c.Feedback?.Trim(), now);
+        work.Decide(c.ReviewerId, decision, c.Feedback?.Trim(), now);
 
         // The message follows the resulting status, so a closure by the rejection limit is reported as a rejection.
         var participation = await participations.GetAsync(work.ParticipationId, ct) ?? throw new DomainException("Participation not found.");
