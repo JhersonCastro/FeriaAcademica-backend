@@ -113,7 +113,7 @@ La respuesta incluye `attendeeName` y `enteredAt` para mostrar quién es. Dos le
 
 **Informe del evento (HU-032).** El informe es HTML libre que arma el súper admin (texto, estilos, imágenes en línea con `data:`). El PDF es esa misma página; el servidor no descarga imágenes ni hojas de estilo externas.
 
-**Certificados (HU-061).** Solo se descargan cuando el evento terminó (`Closed` o `Archived`). Certificado de asistencia: la persona tiene asistencia registrada por QR. Certificado de participación: es autora de un trabajo con versión final. Se emite la primera vez que se descarga y después se devuelve el mismo código.
+**Certificados (HU-060, HU-061).** Solo se descargan cuando el evento terminó (`Closed` o `Archived`). Certificado de asistencia: la persona tiene asistencia registrada por QR. Certificado de participación: es autora de un trabajo con versión final. Certificado de reconocimiento: tiene rol de coordinador, profesor o jurado en el evento. Se emite la primera vez que se descarga y después se devuelve el mismo código.
 
 | Método y ruta | Quién | Para |
 | --- | --- | --- |
@@ -122,7 +122,7 @@ La respuesta incluye `attendeeName` y `enteredAt` para mostrar quién es. Dos le
 | `GET /api/events/{id}/report/pdf` | Súper admin | Descargar el informe en PDF. |
 | `POST /api/events/{id}/close` | Súper admin | Terminar el evento (habilita los certificados y cierra inscripciones). |
 | `GET /api/certificates/mine` | Con sesión | «Mis certificados»: `type`, `available` y `code` si ya se emitió. |
-| `GET /api/certificates/events/{eventId}/{Attendance\|Participation}/pdf` | Con sesión | Descargar el certificado en PDF. |
+| `GET /api/certificates/events/{eventId}/{Attendance\|Participation\|Recognition}/pdf` | Con sesión | Descargar el certificado en PDF. |
 
 Los PDF usan PDFsharp y HtmlRenderer (MIT/BSD) y necesitan una fuente sans-serif instalada (Arial en Windows; Liberation o DejaVu en Linux).
 

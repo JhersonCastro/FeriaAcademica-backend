@@ -1,4 +1,5 @@
 using FeriaAcademica.Application.Abstractions;
+using FeriaAcademica.Domain.Events;
 using FeriaAcademica.Domain.Registrations;
 using PdfSharp.Drawing;
 using PdfSharp.Pdf;
@@ -41,18 +42,33 @@ internal sealed class PdfRenderer : IPdfRenderer
         var area = new XRect(0, 0, page.Width.Point, page.Height.Point);
         g.DrawRectangle(new XPen(XColors.DarkSlateBlue, 3), new XRect(24, 24, area.Width - 48, area.Height - 48));
 
-        var (title, text) = c.Type == CertificateType.Attendance
-            ? ("CERTIFICADO DE ASISTENCIA", "Se certifica que asistió al evento")
-            : ("CERTIFICADO DE PARTICIPACIÓN", "Se certifica que participó en el evento");
+        var (title, text, link) = c.Type switch
+        {
+            CertificateType.Attendance => ("CERTIFICADO DE ASISTENCIA", "Se certifica la asistencia de", "al evento"),
+            CertificateType.Participation => ("CERTIFICADO DE PARTICIPACIÓN", "Se certifica la participación de", "en el evento"),
+            _ => ("CERTIFICADO DE RECONOCIMIENTO", "Se otorga reconocimiento a", $"por su labor como {RoleNames(c.RecognizedRoles)} en el evento"),
+        };
 
         Line(g, title, 30, XFontStyleEx.Bold, area.Width, 120);
         Line(g, text, 16, XFontStyleEx.Regular, area.Width, 180);
         Line(g, c.HolderName, 28, XFontStyleEx.Bold, area.Width, 235);
-        Line(g, "en", 16, XFontStyleEx.Regular, area.Width, 275);
+        Line(g, link, 16, XFontStyleEx.Regular, area.Width, 275);
         Line(g, c.EventName, 22, XFontStyleEx.Bold, area.Width, 315);
         if (!string.IsNullOrWhiteSpace(c.WorkTitle)) Line(g, $"con el trabajo \"{c.WorkTitle}\"", 16, XFontStyleEx.Italic, area.Width, 355);
         Line(g, $"Emitido el {c.IssuedAt:yyyy-MM-dd} · Código {c.Code}", 11, XFontStyleEx.Regular, area.Width, area.Height - 60);
         return Save(document);
+    }
+
+    private static string RoleNames(IReadOnlyList<EventRole> roles)
+    {
+        var names = roles.Select(r => r switch
+        {
+            EventRole.Coordinator => "coordinador",
+            EventRole.Teacher => "profesor",
+            EventRole.Jury => "jurado",
+            _ => r.ToString(),
+        }).ToList();
+        return names.Count > 1 ? $"{string.Join(", ", names[..^1])} y {names[^1]}" : names[0];
     }
 
     private static void Line(XGraphics g, string text, double size, XFontStyleEx style, double width, double y) =>
