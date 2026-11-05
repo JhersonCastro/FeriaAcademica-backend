@@ -4,6 +4,7 @@ namespace FeriaAcademica.Domain.Institutions;
 
 public enum MembershipPosition { Student, Teacher, Administrative }
 
+/// <summary>An organization that hosts events, such as a university.</summary>
 public sealed class Institution : Entity
 {
     public string Name { get; private set; } = default!;
@@ -19,6 +20,7 @@ public sealed class Institution : Entity
     }
 }
 
+/// <summary>A user's position in an institution, and whether they may create events there.</summary>
 public sealed class InstitutionMembership : Entity
 {
     public Guid UserId { get; private set; }

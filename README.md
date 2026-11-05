@@ -156,6 +156,8 @@ tests/
 └── FeriaAcademica.Api.Tests       Pruebas de integración: la API real sobre SQLite en memoria (no necesitan PostgreSQL).
 ```
 
+El mapa de módulos, cómo viaja una petición, dónde vive cada regla y qué cubren las pruebas están en [docs/arquitectura.md](docs/arquitectura.md).
+
 ### Dónde va cada cosa
 
 | Quiero... | Lo pongo en... |

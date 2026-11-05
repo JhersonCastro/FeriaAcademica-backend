@@ -1,5 +1,6 @@
 namespace FeriaAcademica.Domain.Registrations;
 
+/// <summary>Persistence of attendances; implemented in Infrastructure.</summary>
 public interface IAttendanceRepository
 {
     Task<Attendance?> GetByRegistrationAsync(Guid registrationId, CancellationToken ct);
