@@ -1,5 +1,6 @@
 namespace FeriaAcademica.Domain.Events;
 
+/// <summary>Persistence of events; implemented in Infrastructure.</summary>
 public interface IAcademicEventRepository
 {
     Task<AcademicEvent?> GetAsync(Guid id, CancellationToken ct);

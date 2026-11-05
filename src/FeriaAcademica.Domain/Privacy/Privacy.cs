@@ -2,6 +2,7 @@ using FeriaAcademica.Domain.Common;
 
 namespace FeriaAcademica.Domain.Privacy;
 
+/// <summary>A version of the personal-data policy that users are asked to accept.</summary>
 public sealed class DataPolicy : Entity
 {
     public string Version { get; private set; } = default!;
@@ -18,6 +19,7 @@ public sealed class DataPolicy : Entity
     }
 }
 
+/// <summary>A user's answer to one version of the data policy.</summary>
 public sealed class Consent : Entity
 {
     public Guid UserId { get; private set; }
