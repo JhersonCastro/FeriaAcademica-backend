@@ -92,6 +92,13 @@ public class ApiFactory : WebApplicationFactory<Program>
         return user.Id;
     });
 
+    public Task GiveRoleAsync(Guid eventId, Guid userId, EventRole role) => Arrange(async (db, _) =>
+    {
+        db.Add(RoleAssignment.Create(userId, eventId, role));
+        await db.SaveChangesAsync();
+        return 0;
+    });
+
     /// <summary>An event in the given state, with its institution.</summary>
     public Task<Guid> CreateEventAsync(Guid createdBy, string name, bool closed) => Arrange(async (db, _) =>
     {
