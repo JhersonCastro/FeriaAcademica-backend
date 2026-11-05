@@ -7,6 +7,8 @@ using FeriaAcademica.Application.Features.Events.Commands.ScheduleEventStage;
 using FeriaAcademica.Application.Features.Events.Commands.SetEventCapacity;
 using FeriaAcademica.Application.Features.Events.Queries.DownloadEventReport;
 using FeriaAcademica.Application.Features.Events.Queries.GetEventReport;
+using FeriaAcademica.Application.Features.Events.Queries.GetMyParticipation;
+using FeriaAcademica.Application.Features.Events.Queries.ListEventProfessors;
 using FeriaAcademica.Application.Features.Events.Queries.ListEvents;
 using FeriaAcademica.Application.Features.Invitations.Commands.SendInvitation;
 using FeriaAcademica.Domain.Events;
@@ -29,6 +31,15 @@ public class EventsController(IMediator mediator) : ControllerBase
 
     [HttpGet]
     public async Task<IReadOnlyList<EventDto>> List(CancellationToken ct) => await mediator.Send(new ListEventsQuery(), ct);
+
+    /// <summary>The signed-in person's participation in the event (what a new work is created under, and who invited them); 404 if they have none.</summary>
+    [HttpGet("{id:guid}/participations/me")]
+    public async Task<IActionResult> GetMyParticipation(Guid id, CancellationToken ct) =>
+        await mediator.Send(new GetMyParticipationQuery(id, User.UserId()), ct) is { } participation ? Ok(participation) : NotFound();
+
+    /// <summary>The event's professors (people with the Teacher role in it), from whom an author picks the reviewer of a work.</summary>
+    [HttpGet("{id:guid}/professors")]
+    public async Task<IReadOnlyList<ProfessorDto>> ListProfessors(Guid id, CancellationToken ct) => await mediator.Send(new ListEventProfessorsQuery(id), ct);
 
     [HttpPost, Authorize(Policy = AppClaims.SuperAdminPolicy)]
     public async Task<IActionResult> Create(CreateEventRequest r, CancellationToken ct)

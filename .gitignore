@@ -8,3 +8,6 @@ secrets.json
 
 # Claude Code personal settings
 .claude/settings.local.json
+
+# Files uploaded by users (Storage:Path)
+uploads/

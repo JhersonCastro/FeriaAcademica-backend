@@ -107,6 +107,22 @@ La respuesta incluye `attendeeName` y `enteredAt` para mostrar quién es. Dos le
 | `POST /api/events/{id}/attendance/scan` | Súper admin, coordinador o profesor del evento | Registrar asistencia con el QR leído. |
 | `GET /api/events/{id}/attendance/summary` | Súper admin, coordinador o profesor del evento | `registered`, `entered`, `pending` y `lastEntryAt`; el frontend lo consulta cada pocos segundos para ver la afluencia. Las inscripciones canceladas no cuentan. |
 
+## Envío de trabajos (EP-02)
+
+**Participación.** Al aceptar una invitación de estudiante (`Participant`) se crea su participación en el evento, enlazada a esa invitación. El `participationId` que pide `POST /api/works` es el de esa participación: `GET /api/events/{id}/participations/me` lo devuelve junto con `invitedBy`, el profesor que invitó (404 si la persona no participa en el evento).
+
+**Revisor.** `POST /api/works` recibe el `professorId` del revisor. Las personas que pueden elegirse salen de `GET /api/events/{id}/professors` (quienes tienen el rol `Teacher` en el evento).
+
+**Archivos (HU-010).** `POST /api/works/{id}/artifacts/file` recibe un formulario `multipart/form-data` con `type` y `file`. Se valida el formato (PDF), el tamaño (10 MB), que el trabajo sea borrador y que no haya pasado el plazo; el archivo se guarda en disco y queda como una versión nueva del artefacto. La carpeta se define con `Storage:Path` (por defecto `uploads/`, ignorada por git). Los enlaces siguen entrando por `POST /api/works/{id}/artifacts`.
+
+**Plazo (HU-013).** `GET /api/events` devuelve `submissionDeadline`: el fin de la etapa de recepción (`null` si no hay plazo). Después de esa fecha no se puede crear, adjuntar, enviar ni retirar un trabajo enviado.
+
+| Método y ruta | Quién | Para |
+| --- | --- | --- |
+| `GET /api/events/{id}/participations/me` | Con sesión | Mi participación en el evento (`id`, `invitedBy`). |
+| `GET /api/events/{id}/professors` | Con sesión | Profesores del evento (`id`, `fullName`). |
+| `POST /api/works/{id}/artifacts/file` | Autor del trabajo | Subir un archivo como nueva versión de un artefacto. |
+
 ## Versión final, informe del evento y certificados
 
 **Versión final (HU-030).** Cuando el profesor aprueba un trabajo (`Admitted`), su autor sube la versión definitiva con `POST /api/works/{id}/final-version` y `{ "fileUrl", "fileName", "fileSizeBytes" }`. Se valida el formato (PDF) y el tamaño (10 MB) y el documento queda marcado como definitivo (`isFinal` en `GET /api/works/{id}`). Solo hay una versión final por trabajo.
