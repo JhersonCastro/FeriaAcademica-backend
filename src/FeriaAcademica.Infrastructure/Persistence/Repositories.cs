@@ -377,6 +377,14 @@ internal sealed class CertificateReadModel(AppDbContext db) : ICertificateReadMo
                 select new { EventId = e.Id, EventName = e.Name, e.Status, WorkId = w.Id, WorkTitle = w.Title })
             .ToListAsync(ct);
 
+        var roles = await (
+                from r in db.RoleAssignments.AsNoTracking()
+                join e in db.Events on r.EventId equals e.Id
+                where r.UserId == userId
+                select new { EventId = e.Id, EventName = e.Name, e.Status, r.Role })
+            .ToListAsync(ct);
+        var recognized = roles.Where(r => CertificateEligibility.RecognizedRoles.Contains(r.Role)).DistinctBy(r => r.EventId);
+
         var issued = await db.Certificates.AsNoTracking().Where(c => c.UserId == userId).ToListAsync(ct);
         string? CodeOf(Guid eventId, CertificateType type) => issued.FirstOrDefault(c => c.EventId == eventId && c.Type == type)?.Code;
         static bool Finished(EventStatus status) => status is EventStatus.Closed or EventStatus.Archived;
@@ -386,6 +394,8 @@ internal sealed class CertificateReadModel(AppDbContext db) : ICertificateReadMo
                 CodeOf(x.EventId, CertificateType.Attendance)))
             .Concat(participated.Select(x => new MyCertificateDto(x.EventId, x.EventName, nameof(CertificateType.Participation), x.WorkId, x.WorkTitle,
                 Finished(x.Status), CodeOf(x.EventId, CertificateType.Participation))))
+            .Concat(recognized.Select(x => new MyCertificateDto(x.EventId, x.EventName, nameof(CertificateType.Recognition), null, null, Finished(x.Status),
+                CodeOf(x.EventId, CertificateType.Recognition))))
             .OrderBy(c => c.EventName).ThenBy(c => c.Type)
             .ToList();
     }

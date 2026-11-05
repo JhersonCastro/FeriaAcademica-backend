@@ -11,11 +11,11 @@ namespace FeriaAcademica.Api.Controllers;
 [ApiController, Route("api/certificates"), Authorize]
 public class CertificatesController(IMediator mediator) : ControllerBase
 {
-    /// <summary>Attendance certificates (attended the event) and participation certificates (delivered a final version).</summary>
+    /// <summary>Attendance (attended the event), participation (delivered a final version) and recognition (coordinator, teacher or jury of the event) certificates.</summary>
     [HttpGet("mine")]
     public async Task<IReadOnlyList<MyCertificateDto>> Mine(CancellationToken ct) => await mediator.Send(new ListMyCertificatesQuery(User.UserId()), ct);
 
-    /// <summary>The certificate as a PDF; only once the event has finished and the person qualifies. <c>type</c> is Attendance or Participation.</summary>
+    /// <summary>The certificate as a PDF; only once the event has finished and the person qualifies. <c>type</c> is Attendance, Participation or Recognition.</summary>
     [HttpGet("events/{eventId:guid}/{type}/pdf")]
     public async Task<IActionResult> Download(Guid eventId, CertificateType type, CancellationToken ct)
     {
