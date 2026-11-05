@@ -1,5 +1,6 @@
 namespace FeriaAcademica.Domain.Works;
 
+/// <summary>Persistence of works; implemented in Infrastructure.</summary>
 public interface IWorkRepository
 {
     /// <summary>Loads the work with its artifacts and review queue, which its rules need.</summary>

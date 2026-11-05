@@ -2,9 +2,12 @@ using FeriaAcademica.Domain.Common;
 
 namespace FeriaAcademica.Domain.Works;
 
+/// <summary>Where a work stands in its review; it only changes through the methods of <see cref="Work"/>, which record each change in its history.</summary>
 public enum WorkStatus { Draft, Submitted, InReview, Admitted, Evaluated, RejectedDefinitively, Cancelled }
+/// <summary>Why a work was closed: by a reviewer, by reaching the rejection limit, or withdrawn by its author.</summary>
 public enum ClosureType { Manual, ByAttempts, Withdrawal }
 
+/// <summary>A work that an author submits to an event and a professor reviews. It owns its artifacts, review queue and history, and every rule about them.</summary>
 public sealed class Work : Entity
 {
     private readonly List<Artifact> _artifacts = [];

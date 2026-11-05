@@ -4,6 +4,8 @@ using FeriaAcademica.Application.Features.Attendance.Queries.GetAttendanceSummar
 using FeriaAcademica.Application.Features.Certificates.Queries.ListMyCertificates;
 using FeriaAcademica.Application.Features.Events.Queries.GetEventReport;
 using FeriaAcademica.Application.Features.Events.Queries.GetEventSummary;
+using FeriaAcademica.Application.Features.Events.Queries.GetMyParticipation;
+using FeriaAcademica.Application.Features.Events.Queries.ListEventProfessors;
 using FeriaAcademica.Application.Features.Events.Queries.ListEvents;
 using FeriaAcademica.Application.Features.Invitations.Queries.GetInvitation;
 using FeriaAcademica.Application.Features.Notifications.Queries.ListMyNotifications;
@@ -23,6 +25,7 @@ using FeriaAcademica.Infrastructure.Email;
 using FeriaAcademica.Infrastructure.Identity;
 using FeriaAcademica.Infrastructure.Pdf;
 using FeriaAcademica.Infrastructure.Persistence;
+using FeriaAcademica.Infrastructure.Storage;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -40,6 +43,7 @@ public static class DependencyInjection
         s.AddScoped<IAcademicEventRepository, AcademicEventRepository>();
         s.AddScoped<IEventReadModel, EventReadModel>();
         s.AddScoped<IEventSummaryReadModel, EventSummaryReadModel>();
+        s.AddScoped<IEventProfessorReadModel, EventProfessorReadModel>();
         s.AddScoped<IRoleAssignmentRepository, RoleAssignmentRepository>();
         s.AddScoped<IInvitationRepository, InvitationRepository>();
         s.AddScoped<IInvitationReadModel, InvitationReadModel>();
@@ -55,6 +59,8 @@ public static class DependencyInjection
         s.AddScoped<IMyWorkReadModel, MyWorkReadModel>();
         s.AddScoped<IAssignedWorkReadModel, AssignedWorkReadModel>();
         s.AddScoped<IParticipationRepository, ParticipationRepository>();
+        s.AddScoped<IParticipationReadModel, ParticipationReadModel>();
+        s.AddSingleton<IFileStorage, LocalFileStorage>();
         s.AddScoped<INotificationRepository, NotificationRepository>();
         s.AddScoped<INotificationReadModel, NotificationReadModel>();
         s.AddScoped<IEventReportRepository, EventReportRepository>();

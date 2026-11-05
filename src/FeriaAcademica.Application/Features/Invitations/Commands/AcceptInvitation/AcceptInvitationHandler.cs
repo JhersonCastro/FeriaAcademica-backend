@@ -7,7 +7,8 @@ using Mediator;
 
 namespace FeriaAcademica.Application.Features.Invitations.Commands.AcceptInvitation;
 
-internal sealed class AcceptInvitationHandler(IInvitationRepository invitations, IUserAccounts accounts, IRoleAssignmentRepository roles, IUnitOfWork uow)
+internal sealed class AcceptInvitationHandler(
+    IInvitationRepository invitations, IUserAccounts accounts, IRoleAssignmentRepository roles, IParticipationRepository participations, IUnitOfWork uow)
     : ICommandHandler<AcceptInvitationCommand, Unit>
 {
     public async ValueTask<Unit> Handle(AcceptInvitationCommand c, CancellationToken ct)
@@ -33,6 +34,11 @@ internal sealed class AcceptInvitationHandler(IInvitationRepository invitations,
         var assignment = invitation.Accept(userId, invitation.Email, now);
         var current = await roles.GetRolesAsync(userId, invitation.EventId, ct);
         if (!current.Contains(assignment.Role)) await roles.AddAsync(assignment, ct);
+
+        // A student who accepts becomes a participant of the event, linked to the invitation: works hang from this participation.
+        if (assignment.Role == EventRole.Participant && await participations.GetByEventAndUserAsync(invitation.EventId, userId, ct) is null)
+            await participations.AddAsync(Participation.Create(invitation.EventId, userId, invitation.Id), ct);
+
         await uow.SaveChangesAsync(ct);
         return Unit.Value;
     }

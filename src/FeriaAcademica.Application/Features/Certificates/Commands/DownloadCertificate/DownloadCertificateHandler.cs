@@ -11,7 +11,7 @@ namespace FeriaAcademica.Application.Features.Certificates.Commands.DownloadCert
 
 internal sealed class DownloadCertificateHandler(
     IAcademicEventRepository events, IRegistrationRepository registrations, IAttendanceRepository attendances, IWorkRepository works,
-    ICertificateRepository certificates, IUserAccounts users, IPdfRenderer pdf, IUnitOfWork uow)
+    IRoleAssignmentRepository roles, ICertificateRepository certificates, IUserAccounts users, IPdfRenderer pdf, IUnitOfWork uow)
     : ICommandHandler<DownloadCertificateCommand, PdfFile>
 {
     public async ValueTask<PdfFile> Handle(DownloadCertificateCommand c, CancellationToken ct)
@@ -21,7 +21,8 @@ internal sealed class DownloadCertificateHandler(
         var registration = await registrations.GetAsync(c.EventId, c.UserId, ct);
         var attended = registration is not null && await attendances.GetByRegistrationAsync(registration.Id, ct) is not null;
         var work = c.Type == CertificateType.Participation ? await works.GetWithFinalVersionAsync(c.EventId, c.UserId, ct) : null;
-        CertificateEligibility.EnsureCanDownload(c.Type, academicEvent, attended, work);
+        var eventRoles = await roles.GetRolesAsync(c.UserId, c.EventId, ct);
+        CertificateEligibility.EnsureCanDownload(c.Type, academicEvent, attended, work, eventRoles);
 
         var certificate = await certificates.GetAsync(c.EventId, c.UserId, c.Type, ct);
         if (certificate is null)
@@ -32,7 +33,8 @@ internal sealed class DownloadCertificateHandler(
         }
 
         var holder = await users.FindAsync(c.UserId, ct) ?? throw new DomainException("User not found.");
-        var content = pdf.RenderCertificate(new CertificateDocument(holder.FullName, academicEvent.Name, c.Type, work?.Title, certificate.Code, certificate.IssuedAt));
+        var recognized = eventRoles.Where(CertificateEligibility.RecognizedRoles.Contains).ToList();
+        var content = pdf.RenderCertificate(new CertificateDocument(holder.FullName, academicEvent.Name, c.Type, work?.Title, certificate.Code, certificate.IssuedAt, recognized));
         return new PdfFile($"certificado-{FileNames.Slug(academicEvent.Name)}-{certificate.Code}.pdf", content);
     }
 

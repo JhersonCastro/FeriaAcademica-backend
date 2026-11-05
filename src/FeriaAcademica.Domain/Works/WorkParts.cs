@@ -4,9 +4,12 @@ namespace FeriaAcademica.Domain.Works;
 
 public enum ArtifactType { Document, Poster, Presentation, Video, Code, Other }
 public enum QueueStatus { Pending, InReview, Resolved, Withdrawn }
+/// <summary>How a review attempt of a work was resolved.</summary>
 public enum ReviewResult { Admitted, Rejected, DefinitiveRejection }
+/// <summary>What a reviewer can decide about a work: approve it, approve it with changes or reject it.</summary>
 public enum ReviewDecision { Approved, ApprovedWithChanges, Rejected }
 
+/// <summary>A file or a link attached to a work; every upload is a new version and the earlier ones are kept.</summary>
 public sealed class Artifact : Entity
 {
     public Guid WorkId { get; private set; }
@@ -47,6 +50,7 @@ public sealed class WorkHistoryEntry : Entity
     }
 }
 
+/// <summary>One review attempt of a work, waiting in its reviewer's queue.</summary>
 public sealed class ReviewQueueItem : Entity
 {
     public Guid WorkId { get; private set; }
@@ -75,6 +79,7 @@ public sealed class ReviewQueueItem : Entity
     }
 }
 
+/// <summary>A jury member assigned to evaluate a work.</summary>
 public sealed class JuryAssignment : Entity
 {
     public Guid WorkId { get; private set; }
