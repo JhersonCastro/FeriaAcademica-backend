@@ -111,7 +111,7 @@ La respuesta incluye `attendeeName` y `enteredAt` para mostrar quién es. Dos le
 
 **Participación.** Al aceptar una invitación de estudiante (`Participant`) se crea su participación en el evento, enlazada a esa invitación. El `participationId` que pide `POST /api/works` es el de esa participación: `GET /api/events/{id}/participations/me` lo devuelve junto con `invitedBy`, el profesor que invitó (404 si la persona no participa en el evento).
 
-**Revisor.** `POST /api/works` recibe el `professorId` del revisor. Las personas que pueden elegirse salen de `GET /api/events/{id}/professors` (quienes tienen el rol `Teacher` en el evento).
+**Revisor.** El estudiante no elige quién revisa su trabajo: es el profesor que lo invitó. `POST /api/works` recibe solo `participationId`, `title` y `summary`; el revisor (`professorId` del trabajo) sale de la invitación de la que nació la participación. Si se envía un `professorId`, se ignora. Una participación que no viene de una invitación no puede crear trabajos (400, no tiene profesor que lo revise). El trabajo aparece en `GET /api/reviews/assigned` de ese profesor y de nadie más. `GET /api/events/{id}/professors` sigue disponible para mostrar quiénes son los profesores del evento.
 
 **Archivos (HU-010).** `POST /api/works/{id}/artifacts/file` recibe un formulario `multipart/form-data` con `type` y `file`. Se valida el formato (PDF), el tamaño (10 MB), que el trabajo sea borrador y que no haya pasado el plazo; el archivo se guarda en disco y queda como una versión nueva del artefacto. La carpeta se define con `Storage:Path` (por defecto `uploads/`, ignorada por git). Los enlaces siguen entrando por `POST /api/works/{id}/artifacts`.
 
