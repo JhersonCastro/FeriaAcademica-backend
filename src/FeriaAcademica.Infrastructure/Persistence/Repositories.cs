@@ -11,6 +11,7 @@ using FeriaAcademica.Application.Features.Registrations;
 using FeriaAcademica.Application.Features.Registrations.Queries.GetMyRegistration;
 using FeriaAcademica.Application.Features.Users.Queries.GetUser;
 using FeriaAcademica.Application.Features.Users.Queries.ListUsers;
+using FeriaAcademica.Application.Features.Works.Queries.DownloadWorkFile;
 using FeriaAcademica.Application.Features.Works.Queries.GetWork;
 using FeriaAcademica.Application.Features.Works.Queries.ListAssignedWorks;
 using FeriaAcademica.Application.Features.Works.Queries.ListMyWorks;
@@ -288,6 +289,22 @@ internal sealed class AssignedWorkReadModel(AppDbContext db) : IAssignedWorkRead
                 r.CurrentAttempt, r.RejectionCount, r.MaxRejections, r.EnqueuedAt,
                 r.Artifacts.GroupBy(a => a.Type).Select(g => g.MaxBy(a => a.Version)!).OrderBy(a => a.Type).ToList()))
             .ToList();
+    }
+}
+
+internal sealed class WorkFileReadModel(AppDbContext db) : IWorkFileReadModel
+{
+    public async Task<WorkFileInfo?> FindAsync(Guid workId, string fileUrl, CancellationToken ct)
+    {
+        var row = await (
+                from a in db.Artifacts.AsNoTracking()
+                join w in db.Works on a.WorkId equals w.Id
+                join p in db.Participations on w.ParticipationId equals p.Id
+                where w.Id == workId && a.FileUrl == fileUrl
+                select new { a.Type, a.Version, AuthorId = p.UserId, ReviewerId = w.ProfessorId })
+            .FirstOrDefaultAsync(ct);
+
+        return row is null ? null : new WorkFileInfo(row.Type.ToString(), row.Version, row.AuthorId, row.ReviewerId);
     }
 }
 

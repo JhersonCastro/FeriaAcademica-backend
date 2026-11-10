@@ -115,6 +115,8 @@ La respuesta incluye `attendeeName` y `enteredAt` para mostrar quién es. Dos le
 
 **Archivos (HU-010).** `POST /api/works/{id}/artifacts/file` recibe un formulario `multipart/form-data` con `type` y `file`. Se valida el formato (PDF), el tamaño (10 MB), que el trabajo sea borrador y que no haya pasado el plazo; el archivo se guarda en disco y queda como una versión nueva del artefacto. La carpeta se define con `Storage:Path` (por defecto `uploads/`, ignorada por git). Los enlaces siguen entrando por `POST /api/works/{id}/artifacts`.
 
+**Descargar un archivo.** El `fileUrl` de un artefacto subido (`/api/works/{id}/files/{fileId}`) se abre con `GET` y descarga el PDF. Pueden hacerlo el autor, el profesor que revisa el trabajo y el súper admin; cualquier otra persona recibe 404, igual que si el archivo no existiera, y sin sesión responde 401.
+
 **Plazo (HU-013).** `GET /api/events` devuelve `submissionDeadline`: el fin de la etapa de recepción (`null` si no hay plazo). Después de esa fecha no se puede crear, adjuntar, enviar ni retirar un trabajo enviado.
 
 | Método y ruta | Quién | Para |
@@ -122,6 +124,7 @@ La respuesta incluye `attendeeName` y `enteredAt` para mostrar quién es. Dos le
 | `GET /api/events/{id}/participations/me` | Con sesión | Mi participación en el evento (`id`, `invitedBy`). |
 | `GET /api/events/{id}/professors` | Con sesión | Profesores del evento (`id`, `fullName`). |
 | `POST /api/works/{id}/artifacts/file` | Autor del trabajo | Subir un archivo como nueva versión de un artefacto. |
+| `GET /api/works/{id}/files/{fileId}` | Autor, profesor que revisa y súper admin | Descargar un archivo subido (`fileUrl` del artefacto). |
 
 ## Versión final, informe del evento y certificados
 

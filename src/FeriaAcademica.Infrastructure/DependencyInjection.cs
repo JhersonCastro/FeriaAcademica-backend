@@ -13,6 +13,7 @@ using FeriaAcademica.Application.Features.Registrations.Queries.GetMyRegistratio
 using FeriaAcademica.Application.Features.Users;
 using FeriaAcademica.Application.Features.Users.Queries.GetUser;
 using FeriaAcademica.Application.Features.Users.Queries.ListUsers;
+using FeriaAcademica.Application.Features.Works.Queries.DownloadWorkFile;
 using FeriaAcademica.Application.Features.Works.Queries.GetWork;
 using FeriaAcademica.Application.Features.Works.Queries.ListAssignedWorks;
 using FeriaAcademica.Application.Features.Works.Queries.ListMyWorks;
@@ -58,6 +59,7 @@ public static class DependencyInjection
         s.AddScoped<IWorkReadModel, WorkReadModel>();
         s.AddScoped<IMyWorkReadModel, MyWorkReadModel>();
         s.AddScoped<IAssignedWorkReadModel, AssignedWorkReadModel>();
+        s.AddScoped<IWorkFileReadModel, WorkFileReadModel>();
         s.AddScoped<IParticipationRepository, ParticipationRepository>();
         s.AddScoped<IParticipationReadModel, ParticipationReadModel>();
         s.AddSingleton<IFileStorage, LocalFileStorage>();

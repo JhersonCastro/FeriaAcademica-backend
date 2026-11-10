@@ -30,6 +30,7 @@ public class ApiFactory : WebApplicationFactory<Program>
 
     private readonly SqliteConnection _connection = new("DataSource=:memory:");
     private readonly TimeSpan? _tokenLifespan;
+    private readonly string _storagePath = Path.Combine(Path.GetTempPath(), "feria-tests-" + Guid.NewGuid().ToString("N"));
 
     /// <summary>The emails the API "sent": the tests read the links from here instead of a mailbox.</summary>
     public CapturedEmails Emails { get; } = new();
@@ -45,6 +46,7 @@ public class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("SuperAdmin:Password", Password);
         builder.UseSetting("SuperAdmin:FullName", "Administración");
         builder.UseSetting("https_port", "443");   // the test server has no HTTPS endpoint from which the redirect could learn it
+        builder.UseSetting("Storage:Path", _storagePath);   // uploaded files go to a temporary folder, removed on dispose
 
         builder.ConfigureTestServices(services =>
         {
@@ -172,6 +174,7 @@ public class ApiFactory : WebApplicationFactory<Program>
     public override ValueTask DisposeAsync()
     {
         _connection.Dispose();
+        if (Directory.Exists(_storagePath)) Directory.Delete(_storagePath, recursive: true);
         return base.DisposeAsync();
     }
 }

@@ -4,4 +4,10 @@ namespace FeriaAcademica.Application.Abstractions;
 public interface IFileStorage
 {
     Task SaveAsync(string key, Stream content, CancellationToken ct);
+
+    /// <summary>Opens the file saved under <paramref name="key"/>, whatever extension it was saved with; null when there is none.</summary>
+    Task<StoredFile?> OpenReadAsync(string key, CancellationToken ct);
 }
+
+/// <summary>A stored file opened for reading; whoever receives it disposes <see cref="Content"/>.</summary>
+public sealed record StoredFile(Stream Content, string Extension);
