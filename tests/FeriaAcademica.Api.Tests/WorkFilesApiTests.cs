@@ -1,4 +1,6 @@
 using System.Net;
+using FeriaAcademica.Domain.Events;
+using FeriaAcademica.Domain.Works;
 
 namespace FeriaAcademica.Api.Tests;
 
@@ -10,6 +12,7 @@ public class WorkFilesApiTests : IAsyncLifetime
     private readonly ApiFactory _api = new();
     private Guid _workId;
     private HttpClient _author = default!, _professor = default!, _admin = default!, _other = default!;
+    private HttpClient _coordinator = default!, _coordinatorElsewhere = default!, _assignedJury = default!, _unassignedJury = default!;
 
     public async Task InitializeAsync()
     {
@@ -17,11 +20,33 @@ public class WorkFilesApiTests : IAsyncLifetime
         var professorId = await _api.CreateUserAsync("profesor@feria.test", "Profesor");
         await _api.CreateUserAsync("otro@feria.test", "Otra persona");
         _admin = await _api.LoginAsync(ApiFactory.AdminEmail);
-        var eventId = await _api.CreateEventAsync(await _admin.MyIdAsync(), "Feria 2026", closed: false);
+        var adminId = await _admin.MyIdAsync();
+        var eventId = await _api.CreateEventAsync(adminId, "Feria 2026", closed: false);
+        var otherEventId = await _api.CreateEventAsync(adminId, "Otra feria", closed: false);
         _workId = await _api.CreateDraftWorkAsync(eventId, authorId, professorId);
+
+        var coordinatorId = await _api.CreateUserAsync("coordinador@feria.test", "Coordinador");
+        var coordinatorElsewhereId = await _api.CreateUserAsync("coordinador.otra@feria.test", "Coordinador de otra feria");
+        var assignedJuryId = await _api.CreateUserAsync("jurado@feria.test", "Jurado asignado");
+        var unassignedJuryId = await _api.CreateUserAsync("jurado.libre@feria.test", "Jurado sin asignar");
+        await _api.GiveRoleAsync(eventId, coordinatorId, EventRole.Coordinator);
+        await _api.GiveRoleAsync(otherEventId, coordinatorElsewhereId, EventRole.Coordinator);
+        await _api.GiveRoleAsync(eventId, assignedJuryId, EventRole.Jury);
+        await _api.GiveRoleAsync(eventId, unassignedJuryId, EventRole.Jury);
+        await _api.Arrange(async (db, _) =>
+        {
+            db.Add(JuryAssignment.Create(_workId, assignedJuryId));
+            await db.SaveChangesAsync();
+            return 0;
+        });
+
         _author = await _api.LoginAsync("estudiante@feria.test");
         _professor = await _api.LoginAsync("profesor@feria.test");
         _other = await _api.LoginAsync("otro@feria.test");
+        _coordinator = await _api.LoginAsync("coordinador@feria.test");
+        _coordinatorElsewhere = await _api.LoginAsync("coordinador.otra@feria.test");
+        _assignedJury = await _api.LoginAsync("jurado@feria.test");
+        _unassignedJury = await _api.LoginAsync("jurado.libre@feria.test");
     }
 
     public async Task DisposeAsync() => await _api.DisposeAsync();
@@ -62,6 +87,24 @@ public class WorkFilesApiTests : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.OK, (await _professor.GetAsync(fileUrl)).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await _admin.GetAsync(fileUrl)).StatusCode);
+    }
+
+    [Fact]
+    public async Task The_coordinator_of_the_event_and_the_jury_assigned_to_the_work_download_it_too()
+    {
+        var fileUrl = await UploadAsync();
+
+        Assert.Equal(HttpStatusCode.OK, (await _coordinator.GetAsync(fileUrl)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await _assignedJury.GetAsync(fileUrl)).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_coordinator_of_another_event_and_a_jury_member_not_assigned_to_the_work_get_404()
+    {
+        var fileUrl = await UploadAsync();
+
+        Assert.Equal(HttpStatusCode.NotFound, (await _coordinatorElsewhere.GetAsync(fileUrl)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await _unassignedJury.GetAsync(fileUrl)).StatusCode);
     }
 
     [Fact]

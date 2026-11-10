@@ -294,17 +294,21 @@ internal sealed class AssignedWorkReadModel(AppDbContext db) : IAssignedWorkRead
 
 internal sealed class WorkFileReadModel(AppDbContext db) : IWorkFileReadModel
 {
-    public async Task<WorkFileInfo?> FindAsync(Guid workId, string fileUrl, CancellationToken ct)
+    public async Task<WorkFileInfo?> FindAsync(Guid workId, string fileUrl, Guid userId, CancellationToken ct)
     {
         var row = await (
                 from a in db.Artifacts.AsNoTracking()
                 join w in db.Works on a.WorkId equals w.Id
                 join p in db.Participations on w.ParticipationId equals p.Id
                 where w.Id == workId && a.FileUrl == fileUrl
-                select new { a.Type, a.Version, AuthorId = p.UserId, ReviewerId = w.ProfessorId })
+                select new
+                {
+                    a.Type, a.Version, p.EventId, AuthorId = p.UserId, ReviewerId = w.ProfessorId,
+                    IsAssignedJury = db.JuryAssignments.Any(j => j.WorkId == w.Id && j.JuryId == userId),
+                })
             .FirstOrDefaultAsync(ct);
 
-        return row is null ? null : new WorkFileInfo(row.Type.ToString(), row.Version, row.AuthorId, row.ReviewerId);
+        return row is null ? null : new WorkFileInfo(row.Type.ToString(), row.Version, row.EventId, row.AuthorId, row.ReviewerId, row.IsAssignedJury);
     }
 }
 
