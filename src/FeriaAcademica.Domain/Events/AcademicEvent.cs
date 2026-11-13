@@ -64,8 +64,23 @@ public sealed class AcademicEvent : Entity
     {
         if (Status is EventStatus.Closed or EventStatus.Archived or EventStatus.Cancelled)
             throw new DomainException($"The stages of an event in state {Status} cannot be rescheduled.");
-        var stage = _stages.FirstOrDefault(s => s.Type == type) ?? AddStage(type, active: true);   // scheduling a missing stage adds it
+        var stage = _stages.FirstOrDefault(s => s.Type == type) ?? AddStage(type, active: true);   // scheduling a missing or removed stage adds it back
         stage.Schedule(startDate, endDate);
+    }
+
+    /// <summary>
+    /// Takes a stage out of the timeline (it is disabled, not deleted). Without the Reception stage there is no submission deadline.
+    /// A published event keeps at least one active stage.
+    /// </summary>
+    public void RemoveStage(StageType type)
+    {
+        if (Status is EventStatus.Closed or EventStatus.Archived or EventStatus.Cancelled)
+            throw new DomainException($"The stages of an event in state {Status} cannot be changed.");
+        var stage = _stages.FirstOrDefault(s => s.Type == type && s.Status != StageStatus.Disabled)
+            ?? throw new DomainException($"The event has no {type} stage in its timeline.");
+        if (Status != EventStatus.Configuration && _stages.Count(s => s.Status != StageStatus.Disabled) == 1)
+            throw new DomainException("A published event must keep at least one active stage.");
+        stage.Disable();
     }
 
     /// <summary>Changes the seats; it cannot go below the people already registered. Null removes the limit.</summary>

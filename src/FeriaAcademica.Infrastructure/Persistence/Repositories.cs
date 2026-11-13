@@ -5,6 +5,7 @@ using FeriaAcademica.Application.Features.Events.Queries.GetEventSummary;
 using FeriaAcademica.Application.Features.Events.Queries.GetMyParticipation;
 using FeriaAcademica.Application.Features.Events.Queries.ListEventProfessors;
 using FeriaAcademica.Application.Features.Events.Queries.ListEvents;
+using FeriaAcademica.Application.Features.Events.Queries.ListEventStages;
 using FeriaAcademica.Application.Features.Invitations.Queries.GetInvitation;
 using FeriaAcademica.Application.Features.Notifications.Queries.ListMyNotifications;
 using FeriaAcademica.Application.Features.Registrations;
@@ -370,6 +371,19 @@ internal sealed class EventReportReadModel(AppDbContext db) : IEventReportReadMo
         db.EventReports.AsNoTracking().Where(r => r.EventId == eventId)
             .Join(db.Events, r => r.EventId, e => e.Id, (r, e) => new EventReportDto(r.EventId, e.Name, r.Html, r.UpdatedAt))
             .FirstOrDefaultAsync(ct);
+}
+
+internal sealed class EventStageReadModel(AppDbContext db) : IEventStageReadModel
+{
+    public async Task<IReadOnlyList<EventStageDto>?> ListAsync(Guid eventId, CancellationToken ct)
+    {
+        if (!await db.Events.AnyAsync(e => e.Id == eventId, ct)) return null;
+
+        var stages = await db.EventStages.AsNoTracking().Where(s => s.EventId == eventId && s.Status != StageStatus.Disabled).ToListAsync(ct);
+        // Sorted here: the type is stored as text, so the database would sort it alphabetically instead of in stage order.
+        return stages.OrderBy(s => s.StartDate ?? DateTime.MaxValue).ThenBy(s => s.Type)
+            .Select(s => new EventStageDto(s.Type.ToString(), s.Status.ToString(), s.StartDate, s.EndDate)).ToList();
+    }
 }
 
 internal sealed class EventSummaryReadModel(AppDbContext db) : IEventSummaryReadModel

@@ -2,6 +2,7 @@ using FeriaAcademica.Application.Features.Events.Commands.AssignEventRole;
 using FeriaAcademica.Application.Features.Events.Commands.CloseEvent;
 using FeriaAcademica.Application.Features.Events.Commands.CreateEvent;
 using FeriaAcademica.Application.Features.Events.Commands.PublishEvent;
+using FeriaAcademica.Application.Features.Events.Commands.RemoveEventStage;
 using FeriaAcademica.Application.Features.Events.Commands.SaveEventReport;
 using FeriaAcademica.Application.Features.Events.Commands.ScheduleEventStage;
 using FeriaAcademica.Application.Features.Events.Commands.SetEventCapacity;
@@ -11,6 +12,7 @@ using FeriaAcademica.Application.Features.Events.Queries.GetEventSummary;
 using FeriaAcademica.Application.Features.Events.Queries.GetMyParticipation;
 using FeriaAcademica.Application.Features.Events.Queries.ListEventProfessors;
 using FeriaAcademica.Application.Features.Events.Queries.ListEvents;
+using FeriaAcademica.Application.Features.Events.Queries.ListEventStages;
 using FeriaAcademica.Application.Features.Invitations.Commands.SendInvitation;
 using FeriaAcademica.Domain.Events;
 using FeriaAcademica.Infrastructure.Identity;
@@ -77,6 +79,19 @@ public class EventsController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> ScheduleStage(Guid id, StageType type, ScheduleStageRequest r, CancellationToken ct)
     {
         await mediator.Send(new ScheduleEventStageCommand(id, type, r.StartDate, r.EndDate), ct);
+        return NoContent();
+    }
+
+    /// <summary>The stages in the event's timeline, in date order. A stage that was removed does not appear.</summary>
+    [HttpGet("{id:guid}/stages"), Authorize(Policy = AppClaims.SuperAdminPolicy)]
+    public async Task<IActionResult> ListStages(Guid id, CancellationToken ct) =>
+        await mediator.Send(new ListEventStagesQuery(id), ct) is { } stages ? Ok(stages) : NotFound();
+
+    /// <summary>Takes a stage out of the timeline (it is not deleted: scheduling it again with the PUT brings it back). A published event keeps at least one active stage.</summary>
+    [HttpDelete("{id:guid}/stages/{type}"), Authorize(Policy = AppClaims.SuperAdminPolicy)]
+    public async Task<IActionResult> RemoveStage(Guid id, StageType type, CancellationToken ct)
+    {
+        await mediator.Send(new RemoveEventStageCommand(id, type), ct);
         return NoContent();
     }
 

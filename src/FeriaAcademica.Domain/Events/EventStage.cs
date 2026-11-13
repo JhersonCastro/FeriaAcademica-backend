@@ -20,11 +20,20 @@ public sealed class EventStage : Entity
     internal static EventStage Create(Guid eventId, StageType type, bool active) =>
         new() { EventId = eventId, Type = type, Status = active ? StageStatus.Scheduled : StageStatus.Disabled };
 
+    /// <summary>Scheduling a disabled stage puts it back in the timeline.</summary>
     internal void Schedule(DateTime startDate, DateTime endDate)
     {
-        if (Status == StageStatus.Disabled) throw new DomainException($"The {Type} stage is disabled and cannot be scheduled.");
         if (endDate <= startDate) throw new DomainException("A stage must end after it starts.");
+        if (Status == StageStatus.Disabled) Status = StageStatus.Scheduled;
         StartDate = startDate;
         EndDate = endDate;
+    }
+
+    /// <summary>Takes the stage out of the timeline and forgets its dates; scheduling it again brings it back.</summary>
+    internal void Disable()
+    {
+        Status = StageStatus.Disabled;
+        StartDate = null;
+        EndDate = null;
     }
 }
