@@ -62,6 +62,7 @@ internal sealed class RoleAssignmentRepository(AppDbContext db) : IRoleAssignmen
 
 internal sealed class InvitationRepository(AppDbContext db) : IInvitationRepository
 {
+    public Task<Invitation?> GetAsync(Guid id, CancellationToken ct) => db.Invitations.FirstOrDefaultAsync(i => i.Id == id, ct);
     public Task<Invitation?> GetByTokenAsync(string token, CancellationToken ct) => db.Invitations.FirstOrDefaultAsync(i => i.Token == token, ct);
     public async Task AddAsync(Invitation invitation, CancellationToken ct) => await db.Invitations.AddAsync(invitation, ct);
 }

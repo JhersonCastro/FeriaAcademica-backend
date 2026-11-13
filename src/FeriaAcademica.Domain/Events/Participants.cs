@@ -96,4 +96,15 @@ public sealed class Participation : Entity
     {
         if (userId != UserId) throw new DomainException("Only the author can manage this work.");
     }
+
+    /// <summary>
+    /// The reviewer of this participant's works: the professor whose invitation made them a participant. <paramref name="invitation"/> is the
+    /// one this participation came from; without it, or without a sender, there is nobody to review.
+    /// </summary>
+    public Guid ReviewerFrom(Invitation? invitation)
+    {
+        if (InvitationId is null || invitation is null || invitation.Id != InvitationId || invitation.SenderId is null)
+            throw new DomainException("This participation has no professor to review its works.");
+        return invitation.SenderId.Value;
+    }
 }

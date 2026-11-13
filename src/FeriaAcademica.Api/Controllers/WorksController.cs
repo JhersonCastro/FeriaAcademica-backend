@@ -19,7 +19,8 @@ namespace FeriaAcademica.Api.Controllers;
 [ApiController, Route("api/works"), Authorize]
 public class WorksController(IMediator mediator) : ControllerBase
 {
-    public sealed record CreateWorkRequest(Guid ParticipationId, Guid ProfessorId, string Title, string? Summary);
+    /// <summary>The reviewer is not sent: it is the professor who invited the author (see <c>GET /api/events/{id}/participations/me</c>).</summary>
+    public sealed record CreateWorkRequest(Guid ParticipationId, string Title, string? Summary);
     /// <summary>Send a <c>LinkUrl</c>, or a <c>FileUrl</c> with the original <c>FileName</c> and <c>FileSizeBytes</c>.</summary>
     public sealed record AddArtifactRequest(ArtifactType Type, string? LinkUrl, string? FileUrl, string? FileName, long? FileSizeBytes);
 
@@ -40,7 +41,7 @@ public class WorksController(IMediator mediator) : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(CreateWorkRequest r, CancellationToken ct)
     {
-        var id = await mediator.Send(new CreateWorkCommand(r.ParticipationId, r.ProfessorId, r.Title, r.Summary, UserId), ct);
+        var id = await mediator.Send(new CreateWorkCommand(r.ParticipationId, r.Title, r.Summary, UserId), ct);
         return Created($"/api/works/{id}", new { id });
     }
 
