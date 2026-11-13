@@ -8,7 +8,7 @@ public enum RegistrationStatus { Registered, Cancelled }
 public enum CertificateType { Attendance, Participation, Recognition }
 
 /// <summary>What scanning a QR code at the door produced.</summary>
-public enum CheckInOutcome { Entered, AlreadyEntered, RegistrationCancelled }
+public enum CheckInOutcome { Entered, AlreadyEntered, RegistrationCancelled, OwnCode }
 
 /// <summary>The outcome of a scan and, when there is one, the attendance it refers to.</summary>
 public sealed record CheckInResult(CheckInOutcome Outcome, Attendance? Attendance);
@@ -31,10 +31,11 @@ public sealed class Registration : Entity
 
     /// <summary>
     /// Scanning the person's QR at the door. The first valid scan creates the attendance; scanning again never creates a second one
-    /// and reports the existing one. A cancelled registration does not get in.
+    /// and reports the existing one. A cancelled registration does not get in, and nobody can check themselves in.
     /// </summary>
     public CheckInResult CheckIn(Attendance? existing, Guid validatedBy, DateTime now)
     {
+        if (validatedBy == UserId) return new CheckInResult(CheckInOutcome.OwnCode, null);
         if (Status != RegistrationStatus.Registered) return new CheckInResult(CheckInOutcome.RegistrationCancelled, null);
         if (existing is not null) return new CheckInResult(CheckInOutcome.AlreadyEntered, existing);
         return new CheckInResult(CheckInOutcome.Entered, Attendance.Create(Id, validatedBy, now));

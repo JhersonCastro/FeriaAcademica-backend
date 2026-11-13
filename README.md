@@ -94,7 +94,7 @@ El backend genera el QR de cada inscrito y registra la asistencia; el frontend d
 | --- | --- |
 | `Valid` | Primera lectura: la asistencia quedó registrada (con fecha, hora y quién validó). |
 | `AlreadyEntered` | Esa persona ya había ingresado: no se duplica y se devuelve la hora del primer ingreso. |
-| `Invalid` | El QR no existe, es de otro evento o la inscripción fue cancelada. |
+| `Invalid` | El QR no existe, es de otro evento, la inscripción fue cancelada o es el propio QR de quien escanea ("You cannot scan your own QR code."): nadie puede registrar su propia asistencia, tampoco el súper admin; otra persona sí puede escanearlo. |
 
 La respuesta incluye `attendeeName` y `enteredAt` para mostrar quién es. Dos lectores escaneando el mismo QR a la vez producen una sola asistencia (índice único en la base). Solo se inscribe y se toma asistencia mientras el evento está publicado o en curso.
 

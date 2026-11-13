@@ -68,6 +68,30 @@ public class AttendanceTests
         Assert.Equal(T0, second.Attendance!.At);
     }
 
+    // ---- Scan: nobody checks themselves in ----
+
+    [Fact]
+    public void Scanning_your_own_QR_does_not_register_the_attendance()
+    {
+        var registration = NewRegistration();
+
+        var result = registration.CheckIn(existing: null, validatedBy: Person, T0);
+
+        Assert.Equal(CheckInOutcome.OwnCode, result.Outcome);
+        Assert.Null(result.Attendance);
+    }
+
+    [Fact]
+    public void Scanning_your_own_QR_is_refused_even_when_someone_else_already_let_you_in()
+    {
+        var registration = NewRegistration();
+        var entered = registration.CheckIn(null, Scanner, T0).Attendance!;
+
+        var result = registration.CheckIn(entered, validatedBy: Person, T0.AddMinutes(5));
+
+        Assert.Equal(CheckInOutcome.OwnCode, result.Outcome);
+    }
+
     // ---- Scan: cancelled registration ----
 
     [Fact]
