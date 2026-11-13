@@ -175,6 +175,17 @@ La respuesta incluye `attendeeName` y `enteredAt` para mostrar quién es. Dos le
 
 Los PDF usan PDFsharp y HtmlRenderer (MIT/BSD) y necesitan una fuente sans-serif instalada (Arial en Windows; Liberation o DejaVu en Linux).
 
+## Evaluación del evento (HU-023)
+
+Cada evento puede definir una lista de preguntas (hasta 20, de 300 caracteres) que responden las personas que **asistieron** (asistencia por QR) sobre los trabajos admitidos (`Admitted` o `Evaluated`) de otras personas, **cuando el evento ya está cerrado**. Tipos de pregunta: `Scale` (número entero dentro de su escala, p. ej. 1 a 5), `YesNo` (1 = sí, 0 = no) y `Text` (respuesta escrita de hasta 1000 caracteres). Las preguntas se pueden editar hasta que alguien responde; después quedan fijas (`canEdit: false`). Las respuestas de una persona sobre un trabajo se reemplazan por completo cada vez que las guarda. No se calcula todavía el puntaje final ni el ranking (`WorkResult`).
+
+| Método y ruta | Quién | Para |
+| --- | --- | --- |
+| `GET /api/events/{id}/evaluation` | Súper admin, coordinador o profesor del evento | Preguntas del evento (lista vacía si no hay), si se pueden editar y cuántas evaluaciones hay. |
+| `PUT /api/events/{id}/evaluation` | Súper admin, coordinador o profesor del evento | Reemplazar la lista completa; el orden del arreglo es el orden de las preguntas (`id: null` = pregunta nueva). |
+| `GET /api/evaluations/pending` | Con sesión | Eventos cerrados a los que asistió la persona, con preguntas y los trabajos que puede evaluar (`answered`). |
+| `GET` · `PUT /api/events/{id}/evaluation/works/{workId}/answers/me` | Quien asistió | Ver o guardar las respuestas propias sobre un trabajo. No se puede evaluar el trabajo propio. |
+
 ## Seguridad (HU-080)
 
 - **Contraseñas:** Identity las guarda como hash PBKDF2 con sal aleatoria; nunca se guardan tal como se escriben.

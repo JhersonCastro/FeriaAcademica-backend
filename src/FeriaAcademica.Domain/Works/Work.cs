@@ -67,6 +67,8 @@ public sealed class Work : Entity
         return artifact;
     }
 
+    /// <summary>Only works that went through the review and reached the fair are evaluated by the attendees.</summary>
+    public bool IsEvaluable => Status is WorkStatus.Admitted or WorkStatus.Evaluated;
     public bool HasFinalVersion => _artifacts.Any(a => a.IsFinal);
 
     /// <summary>

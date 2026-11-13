@@ -16,6 +16,8 @@ using FeriaAcademica.Application.Features.Works.Queries.DownloadWorkFile;
 using FeriaAcademica.Application.Features.Works.Queries.GetWork;
 using FeriaAcademica.Application.Features.Works.Queries.ListAssignedWorks;
 using FeriaAcademica.Application.Features.Works.Queries.ListMyWorks;
+using FeriaAcademica.Application.Features.Evaluation;
+using FeriaAcademica.Domain.Evaluation;
 using FeriaAcademica.Domain.Events;
 using FeriaAcademica.Domain.Notifications;
 using FeriaAcademica.Domain.Registrations;
@@ -454,5 +456,93 @@ internal sealed class CertificateReadModel(AppDbContext db) : ICertificateReadMo
                 CodeOf(x.EventId, CertificateType.Recognition))))
             .OrderBy(c => c.EventName).ThenBy(c => c.Type)
             .ToList();
+    }
+}
+
+internal sealed class EvaluationRepository(AppDbContext db) : IEvaluationRepository
+{
+    public Task<Instrument?> GetByEventAsync(Guid eventId, CancellationToken ct) =>
+        db.Instruments.Include(i => i.Criteria).FirstOrDefaultAsync(i => i.EventId == eventId && i.IsCurrent, ct);
+
+    public async Task AddAsync(Instrument instrument, CancellationToken ct) => await db.Instruments.AddAsync(instrument, ct);
+
+    public Task<bool> HasResponsesAsync(Guid instrumentId, CancellationToken ct) =>
+        db.Responses.AnyAsync(r => db.Criteria.Any(c => c.Id == r.CriterionId && c.InstrumentId == instrumentId), ct);
+
+    public async Task<IReadOnlyList<Response>> GetResponsesAsync(Guid instrumentId, Guid workId, Guid evaluatorId, CancellationToken ct) =>
+        await db.Responses.Where(r => r.WorkId == workId && r.EvaluatorId == evaluatorId && db.Criteria.Any(c => c.Id == r.CriterionId && c.InstrumentId == instrumentId))
+            .ToListAsync(ct);
+
+    public async Task AddResponsesAsync(IEnumerable<Response> responses, CancellationToken ct) => await db.Responses.AddRangeAsync(responses, ct);
+    public void RemoveResponses(IEnumerable<Response> responses) => db.Responses.RemoveRange(responses);
+    public void RemoveCriteria(IEnumerable<Criterion> criteria) => db.Criteria.RemoveRange(criteria);
+}
+
+internal sealed class EvaluationReadModel(AppDbContext db) : IEvaluationReadModel
+{
+    private async Task<List<EvaluationQuestionDto>> QuestionsAsync(Guid eventId, CancellationToken ct)
+    {
+        var rows = await db.Criteria.AsNoTracking()
+            .Where(c => db.Instruments.Any(i => i.Id == c.InstrumentId && i.EventId == eventId && i.IsCurrent))
+            .OrderBy(c => c.Order).ToListAsync(ct);
+        return rows.Select(c => new EvaluationQuestionDto(
+            c.Id, c.Order, c.Type.ToString(), c.Text, c.Type == CriterionType.Scale ? c.ScaleMin : null, c.Type == CriterionType.Scale ? c.ScaleMax : null)).ToList();
+    }
+
+    public async Task<EventEvaluationDto?> GetEventEvaluationAsync(Guid eventId, CancellationToken ct)
+    {
+        var academicEvent = await db.Events.AsNoTracking().Where(e => e.Id == eventId).Select(e => new { e.Name, e.Status }).FirstOrDefaultAsync(ct);
+        if (academicEvent is null) return null;
+
+        var updatedAt = await db.Instruments.AsNoTracking().Where(i => i.EventId == eventId && i.IsCurrent).Select(i => i.UpdatedAt).FirstOrDefaultAsync(ct);
+        var answers = await db.Responses.AsNoTracking()
+            .Where(r => db.Criteria.Any(c => c.Id == r.CriterionId && db.Instruments.Any(i => i.Id == c.InstrumentId && i.EventId == eventId)))
+            .Select(r => new { r.WorkId, r.EvaluatorId }).Distinct().CountAsync(ct);
+        return new EventEvaluationDto(eventId, academicEvent.Name, academicEvent.Status.ToString(), answers == 0, answers, updatedAt, await QuestionsAsync(eventId, ct));
+    }
+
+    public async Task<IReadOnlyList<PendingEvaluationDto>> ListPendingAsync(Guid userId, CancellationToken ct)
+    {
+        // Finished events the person attended and that have questions.
+        var events = await (
+                from r in db.Registrations.AsNoTracking()
+                join e in db.Events on r.EventId equals e.Id
+                where r.UserId == userId && (e.Status == EventStatus.Closed || e.Status == EventStatus.Archived)
+                    && db.Attendances.Any(a => a.RegistrationId == r.Id)
+                select new { e.Id, e.Name, Questions = db.Criteria.Count(c => db.Instruments.Any(i => i.Id == c.InstrumentId && i.EventId == e.Id && i.IsCurrent)) })
+            .ToListAsync(ct);
+
+        var result = new List<PendingEvaluationDto>();
+        foreach (var e in events.Where(e => e.Questions > 0).OrderBy(e => e.Name))
+        {
+            var works = await (
+                    from w in db.Works.AsNoTracking()
+                    join p in db.Participations on w.ParticipationId equals p.Id
+                    where p.EventId == e.Id && p.UserId != userId && (w.Status == WorkStatus.Admitted || w.Status == WorkStatus.Evaluated)
+                    orderby w.Title
+                    select new EvaluableWorkDto(w.Id, w.Title, w.Summary, db.Responses.Any(r => r.WorkId == w.Id && r.EvaluatorId == userId)))
+                .ToListAsync(ct);
+            result.Add(new PendingEvaluationDto(e.Id, e.Name, e.Questions, works));
+        }
+        return result;
+    }
+
+    public async Task<MyWorkAnswersDto?> GetMyAnswersAsync(Guid eventId, Guid workId, Guid userId, CancellationToken ct)
+    {
+        var work = await (
+                from w in db.Works.AsNoTracking()
+                join p in db.Participations on w.ParticipationId equals p.Id
+                join e in db.Events on p.EventId equals e.Id
+                where w.Id == workId && e.Id == eventId
+                select new { EventName = e.Name, w.Title, w.Summary })
+            .FirstOrDefaultAsync(ct);
+        if (work is null) return null;
+
+        var rows = await db.Responses.AsNoTracking()
+            .Where(r => r.WorkId == workId && r.EvaluatorId == userId && db.Criteria.Any(c => c.Id == r.CriterionId && db.Instruments.Any(i => i.Id == c.InstrumentId && i.EventId == eventId)))
+            .ToListAsync(ct);
+        var answers = rows.Select(r => new EvaluationAnswerDto(r.CriterionId, r.Value, r.Comment)).ToList();
+        return new MyWorkAnswersDto(eventId, work.EventName, workId, work.Title, work.Summary, await QuestionsAsync(eventId, ct), answers,
+            rows.Count == 0 ? null : rows.Max(r => r.At));
     }
 }
