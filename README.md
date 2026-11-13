@@ -44,6 +44,23 @@ dotnet user-secrets set "Smtp:From" "cuenta@gmail.com" --project src/FeriaAcadem
 
 Los enlaces apuntan a `Frontend:BaseUrl` (`appsettings.json`, por defecto `http://localhost:4200`).
 
+**Cuenta de correo.** Con Gmail hace falta una cuenta del proyecto con la verificación en dos pasos activada y una *contraseña de aplicación* (en la cuenta de Google, «Seguridad» → «Contraseñas de aplicaciones»): esa contraseña de 16 caracteres es la que va en `Smtp:Password`, no la contraseña normal de la cuenta. Gmail limita el envío a unos 500 correos por día. Con el correo institucional o un servicio de correo (Brevo, Resend) se usan el servidor, el puerto y las credenciales que entregue el proveedor.
+
+**En un servidor.** user-secrets solo existe en la máquina de desarrollo. En el servidor las mismas claves van como variables de entorno, con doble guion bajo en lugar de los dos puntos, y nunca en `appsettings*.json` ni en el repositorio:
+
+```bash
+Smtp__Host=smtp.gmail.com
+Smtp__Port=587
+Smtp__User=cuenta@gmail.com
+Smtp__Password=contraseña-de-aplicación
+Smtp__From=cuenta@gmail.com
+Frontend__BaseUrl=https://dirección-pública-del-frontend
+```
+
+`Frontend__BaseUrl` importa tanto como el SMTP: sin ella los enlaces de los correos apuntan a `http://localhost:4200`. El envío ocurre dentro de la petición que lo origina; si el servidor de correo falla, la API responde con un error y la persona puede pedir otro enlace con «Olvidé mi contraseña».
+
+**Probarlo.** Cree un usuario desde `POST /api/users`, invite a alguien a una feria y pida recuperar una contraseña: cada uno debe llegar como correo, con un enlace que abre la página del frontend correspondiente.
+
 ## Usuarios y roles
 
 - **Súper admin** (el administrador): único rol global. Crea usuarios, los edita, los activa o desactiva, crea eventos y asigna roles.
