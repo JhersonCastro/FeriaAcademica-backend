@@ -5,6 +5,7 @@ using FeriaAcademica.Application.Features.Works.Commands.SubmitFinalVersion;
 using FeriaAcademica.Application.Features.Works.Commands.SubmitWork;
 using FeriaAcademica.Application.Features.Works.Commands.UploadArtifactFile;
 using FeriaAcademica.Application.Features.Works.Commands.WithdrawWork;
+using FeriaAcademica.Application.Features.Works.Queries.DownloadWorkFile;
 using FeriaAcademica.Application.Features.Works.Queries.GetWork;
 using FeriaAcademica.Application.Features.Works.Queries.ListMyWorks;
 using FeriaAcademica.Domain.Works;
@@ -58,6 +59,13 @@ public class WorksController(IMediator mediator) : ControllerBase
         var artifact = await mediator.Send(new UploadArtifactFileCommand(id, UserId, type, file.FileName, file.Length, content), ct);
         return Created($"/api/works/{id}", artifact);
     }
+
+    /// <summary>Downloads a file uploaded to the work (the <c>fileUrl</c> of its artifact); only its author, its reviewer and the super admin can. Anyone else gets 404.</summary>
+    [HttpGet("{id:guid}/files/{fileId:guid}")]
+    public async Task<IActionResult> DownloadFile(Guid id, Guid fileId, CancellationToken ct) =>
+        await mediator.Send(new DownloadWorkFileQuery(id, fileId, UserId, User.IsSuperAdmin()), ct) is { } file
+            ? File(file.Content, file.ContentType, file.FileName)
+            : NotFound();
 
     [HttpPost("{id:guid}/submit")]
     public async Task<IActionResult> Submit(Guid id, CancellationToken ct)

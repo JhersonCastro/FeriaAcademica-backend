@@ -19,10 +19,10 @@ internal sealed class UploadArtifactFileHandler(
         var academicEvent = await events.GetAsync(participation.EventId, ct) ?? throw new DomainException("Event not found.");
 
         var fileId = Guid.NewGuid();
-        var fileUrl = $"/api/works/{work.Id}/files/{fileId}";
-        var artifact = work.AddFile(c.Type, fileUrl, c.FileName, c.SizeBytes, DateTime.UtcNow, academicEvent.SubmissionDeadline);   // validates before anything is stored
+        var artifact = work.AddFile(c.Type, WorkFileLocation.Url(work.Id, fileId), c.FileName, c.SizeBytes, DateTime.UtcNow,
+            academicEvent.SubmissionDeadline);   // validates before anything is stored
 
-        await storage.SaveAsync($"{work.Id}/{fileId}{Path.GetExtension(c.FileName.Trim()).ToLowerInvariant()}", c.Content, ct);
+        await storage.SaveAsync(WorkFileLocation.Key(work.Id, fileId) + Path.GetExtension(c.FileName.Trim()).ToLowerInvariant(), c.Content, ct);
         await uow.SaveChangesAsync(ct);
         return new AddedArtifact(artifact.Id, artifact.Version);
     }
