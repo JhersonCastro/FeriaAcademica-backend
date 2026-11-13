@@ -34,6 +34,7 @@ internal sealed class ScanAttendanceHandler(
         {
             CheckInOutcome.Entered => new ScanResultDto(nameof(ScanOutcome.Valid), "Attendance registered.", name, result.Attendance!.At),
             CheckInOutcome.AlreadyEntered => new ScanResultDto(nameof(ScanOutcome.AlreadyEntered), "This person already entered.", name, result.Attendance?.At),
+            CheckInOutcome.OwnCode => new ScanResultDto(nameof(ScanOutcome.Invalid), "You cannot scan your own QR code.", name, null),
             _ => new ScanResultDto(nameof(ScanOutcome.Invalid), "This registration was cancelled.", name, null),
         };
     }
