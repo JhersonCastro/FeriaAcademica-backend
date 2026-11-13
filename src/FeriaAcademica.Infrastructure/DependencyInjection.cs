@@ -2,6 +2,7 @@ using FeriaAcademica.Application.Abstractions;
 using FeriaAcademica.Application.Features.Auth;
 using FeriaAcademica.Application.Features.Attendance.Queries.GetAttendanceSummary;
 using FeriaAcademica.Application.Features.Certificates.Queries.ListMyCertificates;
+using FeriaAcademica.Application.Features.Evaluation;
 using FeriaAcademica.Application.Features.Events.Queries.GetEventReport;
 using FeriaAcademica.Application.Features.Events.Queries.GetEventSummary;
 using FeriaAcademica.Application.Features.Events.Queries.GetMyParticipation;
@@ -18,6 +19,7 @@ using FeriaAcademica.Application.Features.Works.Queries.DownloadWorkFile;
 using FeriaAcademica.Application.Features.Works.Queries.GetWork;
 using FeriaAcademica.Application.Features.Works.Queries.ListAssignedWorks;
 using FeriaAcademica.Application.Features.Works.Queries.ListMyWorks;
+using FeriaAcademica.Domain.Evaluation;
 using FeriaAcademica.Domain.Events;
 using FeriaAcademica.Domain.Notifications;
 using FeriaAcademica.Domain.Registrations;
@@ -71,6 +73,8 @@ public static class DependencyInjection
         s.AddScoped<IEventReportReadModel, EventReportReadModel>();
         s.AddScoped<ICertificateRepository, CertificateRepository>();
         s.AddScoped<ICertificateReadModel, CertificateReadModel>();
+        s.AddScoped<IEvaluationRepository, EvaluationRepository>();
+        s.AddScoped<IEvaluationReadModel, EvaluationReadModel>();
         s.AddSingleton<IPdfRenderer, PdfRenderer>();
 
         s.AddIdentityCore<ApplicationUser>(o =>

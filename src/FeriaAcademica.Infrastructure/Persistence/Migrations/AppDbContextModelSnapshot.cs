@@ -46,6 +46,11 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
                     b.Property<double>("Weight")
                         .HasColumnType("double precision");
 
@@ -87,6 +92,9 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
 
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("Version")
                         .HasColumnType("integer");
 
@@ -106,7 +114,8 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Comment")
-                        .HasColumnType("text");
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<Guid>("CriterionId")
                         .HasColumnType("uuid");
@@ -114,7 +123,7 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("EvaluatorId")
                         .HasColumnType("uuid");
 
-                    b.Property<double>("Value")
+                    b.Property<double?>("Value")
                         .HasColumnType("double precision");
 
                     b.Property<Guid>("WorkId")

@@ -36,6 +36,7 @@ internal sealed class ResponseConfiguration : IEntityTypeConfiguration<Response>
     public void Configure(EntityTypeBuilder<Response> b)
     {
         b.ToTable("Responses");
+        b.Property(x => x.Comment).HasMaxLength(Criterion.MaxAnswerLength);
         b.HasOne<Criterion>().WithMany().HasForeignKey(x => x.CriterionId);
         b.HasOne<Work>().WithMany().HasForeignKey(x => x.WorkId);
         b.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.EvaluatorId);
