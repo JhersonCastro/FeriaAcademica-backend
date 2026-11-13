@@ -5,6 +5,7 @@ using FeriaAcademica.Application.Features.Certificates.Queries.ListMyCertificate
 using FeriaAcademica.Application.Features.Events.Queries.GetEventReport;
 using FeriaAcademica.Application.Features.Events.Queries.GetEventSummary;
 using FeriaAcademica.Application.Features.Events.Queries.GetMyParticipation;
+using FeriaAcademica.Application.Features.Events.Queries.ListEventStages;
 using FeriaAcademica.Application.Features.Events.Queries.ListEventProfessors;
 using FeriaAcademica.Application.Features.Events.Queries.ListEvents;
 using FeriaAcademica.Application.Features.Invitations.Queries.GetInvitation;
@@ -44,6 +45,7 @@ public static class DependencyInjection
         s.AddScoped<IAcademicEventRepository, AcademicEventRepository>();
         s.AddScoped<IEventReadModel, EventReadModel>();
         s.AddScoped<IEventSummaryReadModel, EventSummaryReadModel>();
+        s.AddScoped<IEventStageReadModel, EventStageReadModel>();
         s.AddScoped<IEventProfessorReadModel, EventProfessorReadModel>();
         s.AddScoped<IRoleAssignmentRepository, RoleAssignmentRepository>();
         s.AddScoped<IInvitationRepository, InvitationRepository>();
