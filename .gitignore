@@ -11,3 +11,6 @@ secrets.json
 
 # Files uploaded by users (Storage:Path)
 uploads/
+
+# Production secrets of the VM deployment
+deploy/.env

@@ -1,0 +1,87 @@
+# Feria Académica en la VM, detrás del proxy compartido (repositorio «proxy»).
+# Backend, frontend y Postgres de esta app. Ver deploy/README.md para el orden de los pasos.
+#
+# Estructura esperada en la VM (los dos repositorios, uno al lado del otro):
+#   ~/feria-academica/FeriaAcademica-backend
+#   ~/feria-academica/FeriaAcademica-frontend
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: feria_academica
+      POSTGRES_USER: feria
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD en deploy/.env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U feria -d feria_academica"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    security_opt: ["no-new-privileges:true"]
+    networks: [datos]
+    deploy:
+      resources:
+        limits: { memory: 512m, cpus: "1", pids: 200 }
+
+  api:
+    build:
+      context: ..
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # Traefik termina el HTTPS: confía en X-Forwarded-Proto/For para que la cookie y las redirecciones vean https.
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      Database__MigrateOnStartup: "true"
+      Storage__Path: /data/uploads
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=feria_academica;Username=feria;Password=${POSTGRES_PASSWORD}
+      Frontend__BaseUrl: ${FRONTEND_BASEURL:-https://feria-academica.simplebucket.app}
+      Smtp__Host: ${SMTP_HOST:-smtp-relay.brevo.com}
+      Smtp__Port: ${SMTP_PORT:-587}
+      Smtp__EnableSsl: "true"
+      Smtp__User: ${SMTP_USER:?define SMTP_USER en deploy/.env}
+      Smtp__Password: ${SMTP_PASSWORD:?define SMTP_PASSWORD en deploy/.env}
+      Smtp__From: ${SMTP_FROM:?define SMTP_FROM en deploy/.env}
+      SuperAdmin__Email: ${SUPERADMIN_EMAIL:?define SUPERADMIN_EMAIL en deploy/.env}
+      SuperAdmin__Password: ${SUPERADMIN_PASSWORD:?define SUPERADMIN_PASSWORD en deploy/.env}
+      SuperAdmin__FullName: ${SUPERADMIN_FULLNAME:-Administrador}
+    volumes:
+      - uploads:/data/uploads
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    networks:
+      datos:
+      proxy:
+        aliases: [feria-api]      # nombre único en la red «proxy»
+    deploy:
+      resources:
+        limits: { memory: 512m, cpus: "1", pids: 300 }
+
+  web:
+    build:
+      context: ../../FeriaAcademica-frontend
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    networks:
+      proxy:
+        aliases: [feria-web]
+    deploy:
+      resources:
+        limits: { memory: 128m, cpus: "0.5", pids: 100 }
+
+networks:
+  # Solo Postgres y la API; el proxy no se une aquí.
+  datos:
+    internal: true
+  proxy:
+    external: true
+    name: proxy
+
+volumes:
+  pgdata:
+  uploads:
