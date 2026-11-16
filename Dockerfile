@@ -7,7 +7,10 @@ RUN dotnet publish src/FeriaAcademica.Api -c Release -o /app/publish
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 # Uploaded files live in /data/uploads (Storage__Path); mount a volume there.
-RUN mkdir -p /data/uploads && chown app:app /data/uploads
+# The Data Protection keys (auth cookie, password links) are kept in ~/.aspnet/DataProtection-Keys: mount a volume there too,
+# or every new container invalidates sessions and the links already emailed.
+RUN mkdir -p /data/uploads /home/app/.aspnet/DataProtection-Keys \
+    && chown -R app:app /data/uploads /home/app/.aspnet
 COPY --from=build /app/publish .
 USER app
 ENV ASPNETCORE_HTTP_PORTS=8080
