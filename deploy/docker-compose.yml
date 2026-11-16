@@ -4,6 +4,11 @@
 # Estructura esperada en la VM (los dos repositorios, uno al lado del otro):
 #   ~/feria-academica/FeriaAcademica-backend
 #   ~/feria-academica/FeriaAcademica-frontend
+
+# Fixed project name: without it Compose uses the folder name («deploy»), which Relay's compose also uses,
+# and both apps would share containers, networks and volumes.
+name: feria-academica
+
 services:
   postgres:
     image: postgres:17-alpine
