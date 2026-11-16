@@ -50,15 +50,14 @@ app.Use(async (ctx, next) =>
     }
 });
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment()) app.MapOpenApi();
+else app.UseHsts();
+
+// Development always migrates; elsewhere only when asked (Database:MigrateOnStartup), e.g. the single-VM deployment.
+if (app.Environment.IsDevelopment() || config.GetValue<bool>("Database:MigrateOnStartup"))
 {
-    app.MapOpenApi();
     using var scope = app.Services.CreateScope();
     scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
-}
-else
-{
-    app.UseHsts();
 }
 
 await app.Services.SeedSuperAdminAsync(config);
