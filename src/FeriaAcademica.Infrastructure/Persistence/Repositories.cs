@@ -6,6 +6,7 @@ using FeriaAcademica.Application.Features.Events.Queries.GetMyParticipation;
 using FeriaAcademica.Application.Features.Events.Queries.ListEventProfessors;
 using FeriaAcademica.Application.Features.Events.Queries.ListEvents;
 using FeriaAcademica.Application.Features.Events.Queries.ListEventStages;
+using FeriaAcademica.Application.Features.Institutions.Queries.ListInstitutions;
 using FeriaAcademica.Application.Features.Invitations.Queries.GetInvitation;
 using FeriaAcademica.Application.Features.Notifications.Queries.ListMyNotifications;
 using FeriaAcademica.Application.Features.Registrations;
@@ -19,6 +20,7 @@ using FeriaAcademica.Application.Features.Works.Queries.ListMyWorks;
 using FeriaAcademica.Application.Features.Evaluation;
 using FeriaAcademica.Domain.Evaluation;
 using FeriaAcademica.Domain.Events;
+using FeriaAcademica.Domain.Institutions;
 using FeriaAcademica.Domain.Notifications;
 using FeriaAcademica.Domain.Registrations;
 using FeriaAcademica.Domain.Works;
@@ -52,6 +54,27 @@ internal sealed class EventReadModel(AppDbContext db) : IEventReadModel
             })
             .Select(e => new EventDto(e.Id, e.InstitutionId, e.Name, e.Status.ToString(), e.StartDate, e.EndDate,
                 e.Capacity, e.Registered, e.Capacity == null ? null : Math.Max(0, e.Capacity.Value - e.Registered), e.SubmissionDeadline))
+            .ToListAsync(ct);
+}
+
+internal sealed class InstitutionRepository(AppDbContext db) : IInstitutionRepository
+{
+    public Task<Institution?> GetAsync(Guid id, CancellationToken ct) => db.Institutions.FirstOrDefaultAsync(i => i.Id == id, ct);
+
+    public async Task AddAsync(Institution institution, CancellationToken ct) => await db.Institutions.AddAsync(institution, ct);
+
+    public Task<bool> NameExistsAsync(string name, Guid? exceptId, CancellationToken ct)
+    {
+        var lower = name.ToLower();
+        return db.Institutions.AnyAsync(i => i.Name.ToLower() == lower && i.Id != exceptId, ct);
+    }
+}
+
+internal sealed class InstitutionReadModel(AppDbContext db) : IInstitutionReadModel
+{
+    public async Task<IReadOnlyList<InstitutionDto>> ListAsync(CancellationToken ct) =>
+        await db.Institutions.AsNoTracking().OrderBy(i => i.Name)
+            .Select(i => new InstitutionDto(i.Id, i.Name, i.Acronym, i.IsActive, db.Events.Count(e => e.InstitutionId == i.Id)))
             .ToListAsync(ct);
 }
 
