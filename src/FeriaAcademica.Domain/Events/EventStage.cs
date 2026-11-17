@@ -15,6 +15,9 @@ public sealed class EventStage : Entity
     public DateTime? StartDate { get; private set; }
     public DateTime? EndDate { get; private set; }
 
+    /// <summary>Position of the stage in a fair's natural sequence, from 1 (Configuration) to 9 (Publication), whatever its dates.</summary>
+    public int Order => (int)Type + 1;
+
     private EventStage() { } // EF Core
 
     internal static EventStage Create(Guid eventId, StageType type, bool active) =>

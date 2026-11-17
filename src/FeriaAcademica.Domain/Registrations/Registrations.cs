@@ -55,13 +55,13 @@ public sealed class Attendance : Entity
         new() { RegistrationId = registrationId, ValidatedBy = validatedBy, At = now };
 }
 
-/// <summary>Who may take attendance (scan QR codes) and see who has come in: the super admin and the event's coordinators and teachers.</summary>
+/// <summary>Who may take attendance (scan QR codes) and see who registered and who has come in: the super admin and the event's coordinators and teachers.</summary>
 public static class AttendancePolicy
 {
     public static void EnsureCanManage(bool isSuperAdmin, IReadOnlyCollection<EventRole> eventRoles)
     {
         if (isSuperAdmin || eventRoles.Contains(EventRole.Coordinator) || eventRoles.Contains(EventRole.Teacher)) return;
-        throw new DomainException("Only the super admin or a coordinator or teacher of the event can take attendance.");
+        throw new DomainException("Only the super admin or a coordinator or teacher of the event can see its registrations and take attendance.");
     }
 }
 

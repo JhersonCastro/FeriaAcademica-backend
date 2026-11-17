@@ -10,6 +10,7 @@ using FeriaAcademica.Application.Features.Invitations.Queries.GetInvitation;
 using FeriaAcademica.Application.Features.Notifications.Queries.ListMyNotifications;
 using FeriaAcademica.Application.Features.Registrations;
 using FeriaAcademica.Application.Features.Registrations.Queries.GetMyRegistration;
+using FeriaAcademica.Application.Features.Registrations.Queries.ListEventRegistrations;
 using FeriaAcademica.Application.Features.Users.Queries.GetUser;
 using FeriaAcademica.Application.Features.Users.Queries.ListUsers;
 using FeriaAcademica.Application.Features.Works.Queries.DownloadWorkFile;
@@ -182,6 +183,27 @@ internal sealed class RegistrationReadModel(AppDbContext db) : IRegistrationRead
             })
             .FirstOrDefaultAsync(ct);
         return r is null ? null : new RegistrationDto(r.Id, r.EventId, r.QrToken, r.Status.ToString(), r.EnteredAt, r.User.FullName, r.User.Email!);
+    }
+}
+
+internal sealed class EventRegistrationReadModel(AppDbContext db) : IEventRegistrationReadModel
+{
+    public async Task<IReadOnlyList<EventRegistrationDto>> ListAsync(Guid eventId, CancellationToken ct)
+    {
+        var rows = await (
+                from r in db.Registrations.AsNoTracking()
+                join u in db.Users on r.UserId equals u.Id
+                where r.EventId == eventId
+                select new
+                {
+                    r.Id, r.UserId, u.FullName, u.Email, r.Status,
+                    EnteredAt = db.Attendances.Where(a => a.RegistrationId == r.Id).Select(a => (DateTime?)a.At).FirstOrDefault(),
+                })
+            .ToListAsync(ct);
+
+        return rows.OrderBy(r => r.FullName).ThenBy(r => r.Email)
+            .Select(r => new EventRegistrationDto(r.Id, r.UserId, r.FullName, r.Email!, r.Status.ToString(), r.EnteredAt))
+            .ToList();
     }
 }
 
@@ -384,7 +406,7 @@ internal sealed class EventStageReadModel(AppDbContext db) : IEventStageReadMode
         var stages = await db.EventStages.AsNoTracking().Where(s => s.EventId == eventId && s.Status != StageStatus.Disabled).ToListAsync(ct);
         // Sorted here: the type is stored as text, so the database would sort it alphabetically instead of in stage order.
         return stages.OrderBy(s => s.StartDate ?? DateTime.MaxValue).ThenBy(s => s.Type)
-            .Select(s => new EventStageDto(s.Type.ToString(), s.Status.ToString(), s.StartDate, s.EndDate)).ToList();
+            .Select(s => new EventStageDto(s.Type.ToString(), s.Order, s.Status.ToString(), s.StartDate, s.EndDate)).ToList();
     }
 }
 

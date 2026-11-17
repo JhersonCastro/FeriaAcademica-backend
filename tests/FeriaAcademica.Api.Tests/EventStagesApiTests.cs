@@ -94,13 +94,13 @@ public class EventStagesApiTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Only_the_super_admin_can_list_or_remove_stages_and_it_needs_a_session()
+    public async Task Only_the_super_admin_can_remove_stages_anyone_signed_in_can_list_them()
     {
         await _api.CreateUserAsync("profesor@feria.test");
         var teacher = await _api.LoginAsync("profesor@feria.test");
         var anonymous = _api.NewClient();
 
-        Assert.Equal(HttpStatusCode.Forbidden, (await teacher.GetAsync(Stages)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await teacher.GetAsync(Stages)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await teacher.DeleteAsync($"{Stages}/Registration")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync(Stages)).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.DeleteAsync($"{Stages}/Registration")).StatusCode);
