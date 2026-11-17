@@ -13,10 +13,40 @@ public sealed class Institution : Entity
 
     private Institution() { } // EF Core
 
+    public const int NameMaxLength = 200;
+    public const int AcronymMaxLength = 30;
+
     public static Institution Create(string name, string? acronym = null)
     {
+        var institution = new Institution();
+        institution.Apply(name, acronym);
+        return institution;
+    }
+
+    public void Update(string name, string? acronym) => Apply(name, acronym);
+
+    /// <summary>An inactive institution cannot receive new events; its existing events stay as they are.</summary>
+    public void Deactivate()
+    {
+        if (!IsActive) throw new DomainException("The institution is already inactive.");
+        IsActive = false;
+    }
+
+    public void Activate()
+    {
+        if (IsActive) throw new DomainException("The institution is already active.");
+        IsActive = true;
+    }
+
+    private void Apply(string name, string? acronym)
+    {
         if (string.IsNullOrWhiteSpace(name)) throw new DomainException("Institution name is required.");
-        return new Institution { Name = name.Trim(), Acronym = acronym };
+        name = name.Trim();
+        if (name.Length > NameMaxLength) throw new DomainException($"Institution name cannot exceed {NameMaxLength} characters.");
+        acronym = string.IsNullOrWhiteSpace(acronym) ? null : acronym.Trim();
+        if (acronym is { Length: > AcronymMaxLength }) throw new DomainException($"Institution acronym cannot exceed {AcronymMaxLength} characters.");
+        Name = name;
+        Acronym = acronym;
     }
 }
 
