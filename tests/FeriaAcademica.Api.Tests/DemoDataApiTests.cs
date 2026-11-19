@@ -24,7 +24,8 @@ public class DemoDataApiTests : IAsyncLifetime
         var natalia = await LoginAsync("natalia.duarte");
 
         var pending = await (await natalia.GetAsync("/api/evaluations/pending")).JsonAsync();
-        var fair = Assert.Single(pending.EnumerateArray());
+        Assert.Equal(4, pending.GetArrayLength());   // the four closed fairs she attended
+        var fair = pending.EnumerateArray().Single(f => f.GetProperty("eventName").GetString() == "Feria de Ciencias 2026-I");
         var works = fair.GetProperty("works").EnumerateArray().ToList();
         Assert.Equal(5, works.Count);   // the five admitted works; the rejected one is not evaluable
 
@@ -45,7 +46,7 @@ public class DemoDataApiTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.NoContent, (await natalia.PutAsJsonAsync(url, new { answers })).StatusCode);
 
         var after = await (await natalia.GetAsync("/api/evaluations/pending")).JsonAsync();
-        Assert.Equal(1, after[0].GetProperty("works").EnumerateArray().Count(w => w.GetProperty("answered").GetBoolean()));
+        Assert.Equal(1, after.EnumerateArray().Single(f => f.GetProperty("eventName").GetString() == "Feria de Ciencias 2026-I").GetProperty("works").EnumerateArray().Count(w => w.GetProperty("answered").GetBoolean()));
     }
 
     [Fact]
@@ -67,7 +68,7 @@ public class DemoDataApiTests : IAsyncLifetime
     {
         var valentina = await LoginAsync("valentina.torres");
         var mine = await (await valentina.GetAsync("/api/works/mine")).JsonAsync();
-        Assert.Equal(2, mine.GetArrayLength());   // one in the closed fair and a draft in the open one
+        Assert.Equal(3, mine.GetArrayLength());   // two closed fairs and a draft in an open one
 
         var admin = await _api.LoginAsync(ApiFactory.AdminEmail);
         var events = await admin.GetAsync("/api/events");
@@ -92,6 +93,6 @@ public class DemoDataApiTests : IAsyncLifetime
         var (institutions, events) = await _api.Arrange(async (db, _) =>
             (await db.Institutions.CountAsync(i => i.Name == DemoDataSeeder.InstitutionName), await db.Events.CountAsync()));
         Assert.Equal(1, institutions);
-        Assert.Equal(3, events);
+        Assert.Equal(11, events);
     }
 }

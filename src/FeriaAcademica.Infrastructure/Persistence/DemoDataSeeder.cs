@@ -19,7 +19,7 @@ using Microsoft.Extensions.Logging;
 namespace FeriaAcademica.Infrastructure.Persistence;
 
 /// <summary>
-/// Fills an empty database with a believable demo: students, teachers, a closed fair with works already evaluated by some people and
+/// Fills an empty database with a believable demo: students, teachers, a dozen fairs of the Universidad del Cauca in every state, one closed with works already evaluated by some people and
 /// pending for others, an open fair with works in every review state, and a fair still being configured. Everything goes through the
 /// domain methods, so the data obeys the same rules as the real flows. Only runs when "Demo:Seed" is true, and only once: it does
 /// nothing if the demo institution already exists. Every demo user gets the password in "Demo:Password" (or <see cref="DefaultPassword"/>).
@@ -28,7 +28,7 @@ public static class DemoDataSeeder
 {
     public const string DefaultPassword = "Demo#2026pass";
     public const string EmailDomain = "demo.feria.test";
-    public const string InstitutionName = "Universidad Demo";
+    public const string InstitutionName = "Universidad del Cauca";
 
     public static async Task SeedDemoDataAsync(this IServiceProvider services, IConfiguration config)
     {
@@ -77,6 +77,15 @@ public static class DemoDataSeeder
             var isabela = await User("isabela.moreno", "Isabela Moreno", "+57 311 555 0207", new DateOnly(2007, 12, 5), "Rosa Moreno", $"rosa.moreno@{EmailDomain}"); // a minor, with guardian
             var samuel = await User("samuel.rojas", "Samuel Rojas", "+57 311 555 0208", new DateOnly(2003, 6, 26));
 
+            var diana = await User("diana.munoz", "Diana Muñoz", "+57 300 555 0106");
+            var jorge = await User("jorge.valencia", "Jorge Valencia", "+57 300 555 0107");
+            var andrea = await User("andrea.salazar", "Andrea Salazar", "+57 311 555 0209", new DateOnly(2004, 2, 11));
+            var felipe = await User("felipe.guzman", "Felipe Guzmán", "+57 311 555 0210", new DateOnly(2003, 8, 19));
+            var luisa = await User("luisa.mejia", "Luisa Mejía", "+57 311 555 0211", new DateOnly(2004, 10, 3));
+            var tomas = await User("tomas.ibarra", "Tomás Ibarra", "+57 311 555 0212", new DateOnly(2002, 12, 27));
+            var daniela = await User("daniela.pino", "Daniela Pino", "+57 311 555 0213", new DateOnly(2003, 4, 9));
+            var ricardo = await User("ricardo.solano", "Ricardo Solano", "+57 311 555 0214", new DateOnly(2002, 9, 15));
+
             var paola = await User("paola.jimenez", "Paola Jiménez", "+57 320 555 0301");
             var esteban = await User("esteban.cruz", "Esteban Cruz", "+57 320 555 0302");
             var natalia = await User("natalia.duarte", "Natalia Duarte", "+57 320 555 0303");
@@ -84,12 +93,11 @@ public static class DemoDataSeeder
             var createdBy = admin ?? marcela.Id;
 
             // ---- Institutions ----
-            var udemo = Institution.Create(InstitutionName, "UDEMO");
-            var norte = Institution.Create("Instituto Tecnológico del Norte", "ITN");
-            db.Institutions.AddRange(udemo, norte);
-            foreach (var teacher in new[] { carlos, laura }) db.InstitutionMemberships.Add(InstitutionMembership.Create(teacher.Id, udemo.Id, MembershipPosition.Teacher, canCreateEvents: true));
+            var udemo = Institution.Create(InstitutionName, "Unicauca");
+            db.Institutions.Add(udemo);
+            foreach (var teacher in new[] { carlos, laura, diana, jorge }) db.InstitutionMemberships.Add(InstitutionMembership.Create(teacher.Id, udemo.Id, MembershipPosition.Teacher, canCreateEvents: true));
             db.InstitutionMemberships.Add(InstitutionMembership.Create(marcela.Id, udemo.Id, MembershipPosition.Administrative, canCreateEvents: true));
-            foreach (var student in new[] { valentina, santiago, camila, juan, mariana, daniel, isabela, samuel })
+            foreach (var student in new[] { valentina, santiago, camila, juan, mariana, daniel, isabela, samuel, andrea, felipe, luisa, tomas, daniela, ricardo })
                 db.InstitutionMemberships.Add(InstitutionMembership.Create(student.Id, udemo.Id, MembershipPosition.Student));
             await db.SaveChangesAsync();
 
@@ -295,6 +303,67 @@ public static class DemoDataSeeder
             GiveRole(arts, marcela, EventRole.Coordinator);
             GiveRole(arts, laura, EventRole.Teacher);
 
+
+            // ---- 4. More fairs, so the list looks like a real university: past, running and upcoming ----
+            var guests = new[] { paola, esteban, natalia };
+            var evaluators = new[] { paola, esteban };   // Natalia always attends and never evaluates: she has everything pending
+
+            await Fair(udemo.Id, createdBy, "Feria de Ingeniería 2025-II", 200, r: -230, FairState.Closed, marcela, [carlos, diana], andres,
+            [
+                new(andrea, carlos, "Sistema de alerta temprana de crecientes en el río Molino", "Sensores y modelo hidrológico para avisar a los barrios ribereños.", Outcome.AdmittedFinal),
+                new(felipe, diana, "Robot clasificador de residuos con visión artificial", "Separa plástico, vidrio y cartón con una cámara y un brazo robótico.", Outcome.AdmittedFinal),
+                new(luisa, carlos, "Puente peatonal con materiales compuestos de guadua", "Diseño y ensayo de carga de un puente liviano para veredas.", Outcome.Admitted),
+                new(tomas, diana, "Semáforos adaptativos para el centro de Popayán", "Simulación del tráfico con ajuste automático de los tiempos.", Outcome.Corrected),
+                new(ricardo, carlos, "Cargador solar portátil para comunidades rurales", "Un cargador de celulares con un panel pequeño.", Outcome.Rejected),
+            ], guests, evaluators);
+
+            await Fair(udemo.Id, createdBy, "Feria de Salud y Bienestar 2025-I", 150, r: -380, FairState.Closed, marcela, [laura, jorge], sofia,
+            [
+                new(daniela, laura, "Prevalencia de hipertensión en veredas del norte del Cauca", "Tamizaje a 400 personas y su relación con el acceso a servicios de salud.", Outcome.AdmittedFinal),
+                new(valentina, jorge, "Plantas medicinales de uso tradicional: inventario comunitario", "Registro de especies y saberes de comunidades indígenas de la región.", Outcome.Admitted),
+                new(samuel, laura, "Aplicación de recordatorio de medicamentos para adultos mayores", "Alarmas con voz y un aviso a los familiares cuando se omite una dosis.", Outcome.Admitted),
+                new(isabela, jorge, "Salud mental y rendimiento académico en bachillerato", "Encuesta en tres colegios de Popayán.", Outcome.Rejected),
+            ], guests, evaluators);
+
+            await Fair(udemo.Id, createdBy, "Feria del Café y la Biodiversidad 2025", 100, r: -520, FairState.Closed, marcela, [diana, jorge], andres,
+            [
+                new(juan, jorge, "Aves de los cafetales de sombra en el macizo colombiano", "Conteo de especies en 12 fincas y su relación con el tipo de sombrío.", Outcome.AdmittedFinal),
+                new(mariana, diana, "Perfiles de taza del café del Cauca según la altitud", "Catación de 60 muestras de fincas entre 1.500 y 2.000 metros.", Outcome.Admitted),
+                new(daniel, jorge, "Recolección mecanizada de café en ladera", "Se retiró antes de la revisión.", Outcome.Withdrawn),
+            ], guests, evaluators);
+
+            await Fair(udemo.Id, createdBy, "Feria de Energías Renovables 2026-II", 90, r: -40, FairState.Published, marcela, [carlos, diana], andres,
+            [
+                new(samuel, carlos, "Biodigestor para fincas lecheras", "Convierte el estiércol en gas de cocina y abono.", Outcome.AdmittedFinal),
+                new(andrea, diana, "Microturbina para quebradas de caudal bajo", "Generación eléctrica sin represas para viviendas aisladas.", Outcome.Admitted),
+                new(felipe, carlos, "Secador solar de cacao", "Reduce de siete a tres días el secado del grano.", Outcome.AdmittedFinal),
+                new(juan, diana, "Almacenamiento con baterías de vehículos reutilizadas", "Segunda vida de baterías para respaldo en escuelas rurales.", Outcome.InReview),
+            ], guests, []);
+
+            await Fair(udemo.Id, createdBy, "Feria de Emprendimiento Rural 2026-II", 60, r: 14, FairState.Published, marcela, [diana, jorge], null,
+            [
+                new(andrea, diana, "Plan de negocio para una cooperativa de panela", "Estudio de mercado y costos para once familias paneleras.", Outcome.Submitted),
+                new(felipe, jorge, "Marketplace de productos campesinos", "Plataforma para vender directo del productor al consumidor.", Outcome.InReview),
+                new(tomas, diana, "Empaques biodegradables de fique", "Prototipo de bolsas de fibra de fique para el comercio local.", Outcome.Draft),
+                new(luisa, jorge, "Turismo comunitario en Silvia", "Ruta de experiencias con familias artesanas.", Outcome.ChangesRequested),
+            ], [paola, esteban, natalia], []);
+
+            await Fair(udemo.Id, createdBy, "Feria de Ciencias Sociales y Paz 2026-II", 120, r: -15, FairState.Published, marcela, [laura, jorge], null,
+            [
+                new(daniela, laura, "Memoria oral de la construcción de paz en el Cauca", "Entrevistas a líderes y lideresas de cinco municipios.", Outcome.Admitted),
+                new(ricardo, jorge, "Mujeres rurales y economías solidarias", "Caracterización de 14 asociaciones de mujeres.", Outcome.InReview),
+                new(camila, laura, "Redes sociales y participación juvenil", "Cómo se informan y organizan los jóvenes antes de las elecciones.", Outcome.Submitted),
+                new(santiago, jorge, "Mapeo de conflictos por el agua", "Cartografía participativa de disputas por acueductos veredales.", Outcome.ChangesRequested),
+                new(daniel, laura, "Mediación escolar entre pares", "Un programa de mediación en un colegio.", Outcome.Rejected),
+            ], [paola, esteban, natalia], []);
+
+            // Only the call is open: nobody has submitted anything yet.
+            await Fair(udemo.Id, createdBy, "Feria de Matemáticas y Ciencia de Datos 2027-I", null, r: 65, FairState.Published, marcela, [carlos], null, [], [], []);
+
+            // Still being configured, without any date.
+            var food = AcademicEvent.Create(udemo.Id, "Feria de Agroindustria y Alimentos 2027", createdBy, capacity: 150);
+            db.Events.Add(food);
+            GiveRole(food, marcela, EventRole.Coordinator);
             await db.SaveChangesAsync();
         }
 
@@ -322,6 +391,124 @@ public static class DemoDataSeeder
             var result = await users.CreateAsync(user, password);
             if (!result.Succeeded) throw new InvalidOperationException($"Could not create demo user {email}: " + string.Join(" ", result.Errors.Select(e => e.Description)));
             return user;
+        }
+
+        private enum FairState { Configuration, Published, Closed }
+        private enum Outcome { Draft, Submitted, InReview, ChangesRequested, Admitted, AdmittedFinal, Corrected, Rejected, Withdrawn }
+        private sealed record Spec(ApplicationUser Student, ApplicationUser Teacher, string Title, string Summary, Outcome Outcome);
+
+        /// <summary>
+        /// A fair whose timeline is built around the end of its reception stage (<paramref name="r"/>, in days from today; negative is past):
+        /// the call comes before it, then admission, registration, evaluation and results. Its works go through the review as their
+        /// <see cref="Outcome"/> says, on dates that fit the timeline. A closed fair also gets the evaluation questions and the answers
+        /// of <paramref name="evaluators"/>; the guests who attended are the ones who can evaluate.
+        /// </summary>
+        private async Task Fair(Guid institutionId, Guid createdBy, string name, int? capacity, int r, FairState state, ApplicationUser coordinator,
+            ApplicationUser[] teachers, ApplicationUser? jury, Spec[] works, ApplicationUser[] guests, ApplicationUser[] evaluators)
+        {
+            var ev = AcademicEvent.Create(institutionId, name, createdBy, capacity: capacity);
+            ev.ScheduleStage(StageType.Call, In(r - 80), In(r - 50));
+            ev.ScheduleStage(StageType.Reception, In(r - 50), In(r));
+            ev.ScheduleStage(StageType.Admission, In(r), In(r + 20));
+            ev.ScheduleStage(StageType.Registration, In(r - 30), In(r + 40));
+            ev.ScheduleStage(StageType.Evaluation, In(r + 45), In(r + 55));
+            ev.ScheduleStage(StageType.Results, In(r + 55), In(r + 60));
+            ev.Publish();
+            if (state == FairState.Closed) ev.Close();
+            db.Events.Add(ev);
+
+            GiveRole(ev, coordinator, EventRole.Coordinator);
+            foreach (var teacher in teachers) GiveRole(ev, teacher, EventRole.Teacher);
+            if (jury is not null) GiveRole(ev, jury, EventRole.Jury);
+
+            var base0 = Min(In(r - 50).AddDays(5), Ago(20));   // when the first works are created: inside the reception stage and in the past
+            var built = new List<(Work Work, Spec Spec)>();
+            for (var i = 0; i < works.Length; i++)
+            {
+                var spec = works[i];
+                var participation = Enroll(ev, spec.Student, spec.Teacher, base0.AddDays(-20));
+                var work = await BuildWork(ev, participation, spec, base0.AddDays(i));
+                db.Works.Add(work);
+                built.Add((work, spec));
+                if (jury is not null && work.IsEvaluable) db.JuryAssignments.Add(JuryAssignment.Create(work.Id, jury.Id));
+            }
+
+            var door = teachers[0];
+            foreach (var guest in guests)
+            {
+                if (state == FairState.Closed) Attend(ev, guest, door, In(r + 30), attended: true);
+                else Register(ev, guest, door, Ago(3), attended: false);
+            }
+            await db.SaveChangesAsync();
+
+            if (state != FairState.Closed) return;
+
+            var instrument = Instrument.Create(ev.Id, InstrumentType.Survey, EvaluatorGroup.Attendees, $"Evaluation of {name}");
+            instrument.ReplaceQuestions(Questions, hasAnswers: false, In(r + 40));
+            db.Instruments.Add(instrument);
+            await db.SaveChangesAsync();
+
+            var q = instrument.Criteria.OrderBy(c => c.Order).ToList();
+            var evaluable = built.Where(b => b.Work.IsEvaluable).Select(b => b.Work).ToList();
+            for (var i = 0; i < evaluable.Count; i++)
+                for (var j = 0; j < evaluators.Length; j++)
+                    if ((i + j) % 3 != 2)   // leaves some works unevaluated by each person
+                        Evaluate(instrument, q, evaluable[i], evaluators[j], 3 + (i + j) % 3, 3 + (i * 2 + j) % 3, 3 + (i + 2 * j) % 3, (i + j) % 2 == 0, Comments[(i + j) % Comments.Length]);
+            await db.SaveChangesAsync();
+        }
+
+        private static readonly string[] Comments =
+        [
+            "Muy buen trabajo, se nota el esfuerzo del equipo.",
+            "La idea es útil; me gustaría ver más resultados.",
+            "Excelente presentación y respuestas claras.",
+            "Buen tema. Faltó explicar mejor la metodología.",
+        ];
+
+        private static DateTime Min(DateTime a, DateTime b) => a < b ? a : b;
+
+        private async Task<Work> BuildWork(AcademicEvent ev, Participation participation, Spec spec, DateTime t0)
+        {
+            var deadline = ev.SubmissionDeadline;
+            var (student, teacher) = (spec.Student, spec.Teacher);
+            var work = await NewWork(ev, participation, teacher, student, spec.Title, spec.Summary, t0);
+            switch (spec.Outcome)
+            {
+                case Outcome.Draft:
+                    break;
+                case Outcome.Submitted:
+                    work.Submit(student.Id, t0.AddDays(2), deadline);
+                    break;
+                case Outcome.InReview:
+                    Submit(work, student, teacher, t0.AddDays(2), deadline);
+                    break;
+                case Outcome.ChangesRequested:
+                    Submit(work, student, teacher, t0.AddDays(2), deadline);
+                    work.Decide(teacher.Id, ReviewDecision.ApprovedWithChanges, "Ajusta la metodología y agrega las referencias que faltan.", t0.AddDays(5));
+                    break;
+                case Outcome.Admitted:
+                case Outcome.AdmittedFinal:
+                    Submit(work, student, teacher, t0.AddDays(2), deadline);
+                    work.Admit(teacher.Id, t0.AddDays(5), "Buen trabajo.");
+                    if (spec.Outcome == Outcome.AdmittedFinal) await FinalVersion(work, t0.AddDays(10));
+                    break;
+                case Outcome.Corrected:
+                    Submit(work, student, teacher, t0.AddDays(2), deadline);
+                    work.Decide(teacher.Id, ReviewDecision.ApprovedWithChanges, "Agrega la descripción de los datos y los límites del estudio.", t0.AddDays(5));
+                    await AddDocument(work, "version-corregida.pdf", "Versión corregida", t0.AddDays(6), deadline);
+                    work.Submit(student.Id, t0.AddDays(7), deadline);
+                    work.StartReview(teacher.Id, t0.AddDays(8));
+                    work.Admit(teacher.Id, t0.AddDays(9), "Ahora sí queda completo.");
+                    break;
+                case Outcome.Rejected:
+                    Submit(work, student, teacher, t0.AddDays(2), deadline);
+                    work.Decide(teacher.Id, ReviewDecision.Rejected, "No cumple con el alcance de la feria: falta un componente de investigación.", t0.AddDays(5));
+                    break;
+                case Outcome.Withdrawn:
+                    work.Withdraw(student.Id, t0.AddDays(3));
+                    break;
+            }
+            return work;
         }
 
         private void GiveRole(AcademicEvent ev, ApplicationUser user, EventRole role) => db.RoleAssignments.Add(RoleAssignment.Create(user.Id, ev.Id, role));
