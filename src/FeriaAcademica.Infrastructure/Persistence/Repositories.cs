@@ -43,15 +43,19 @@ internal sealed class AcademicEventRepository(AppDbContext db) : IAcademicEventR
 internal sealed class EventReadModel(AppDbContext db) : IEventReadModel
 {
     public async Task<IReadOnlyList<EventDto>> ListAsync(CancellationToken ct) =>
-        await db.Events.AsNoTracking().OrderBy(e => e.StartDate).ThenBy(e => e.Name)
+        await db.Events.AsNoTracking()
             .Select(e => new
             {
-                e.Id, e.InstitutionId, e.Name, e.Status, e.StartDate, e.EndDate, e.Capacity,
+                e.Id, e.InstitutionId, e.Name, e.Status, e.Capacity,
+                // The dates of the fair are those of its timeline: the earliest start and the latest end among the stages that are not removed.
+                StartDate = db.EventStages.Where(s => s.EventId == e.Id && s.Status != StageStatus.Disabled).Min(s => s.StartDate),
+                EndDate = db.EventStages.Where(s => s.EventId == e.Id && s.Status != StageStatus.Disabled).Max(s => s.EndDate),
                 Registered = db.Registrations.Count(r => r.EventId == e.Id && r.Status == RegistrationStatus.Registered),
                 SubmissionDeadline = db.EventStages
                     .Where(s => s.EventId == e.Id && s.Type == StageType.Reception && s.Status != StageStatus.Disabled)
                     .Select(s => s.EndDate).FirstOrDefault(),
             })
+            .OrderBy(e => e.StartDate).ThenBy(e => e.Name)
             .Select(e => new EventDto(e.Id, e.InstitutionId, e.Name, e.Status.ToString(), e.StartDate, e.EndDate,
                 e.Capacity, e.Registered, e.Capacity == null ? null : Math.Max(0, e.Capacity.Value - e.Registered), e.SubmissionDeadline))
             .ToListAsync(ct);

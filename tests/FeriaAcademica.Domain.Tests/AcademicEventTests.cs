@@ -133,6 +133,54 @@ public class AcademicEventTests
         Assert.Throws<DomainException>(() => academicEvent.RemoveStage(StageType.Call));
     }
 
+    [Fact]
+    public void An_event_without_dated_stages_has_no_dates()
+    {
+        var academicEvent = NewEvent();
+        academicEvent.AddStage(StageType.Reception, active: true);
+
+        Assert.Null(academicEvent.StartDate);
+        Assert.Null(academicEvent.EndDate);
+    }
+
+    [Fact]
+    public void The_dates_of_an_event_are_the_earliest_start_and_the_latest_end_of_its_stages()
+    {
+        var academicEvent = NewEvent();
+        academicEvent.ScheduleStage(StageType.Reception, T0.AddDays(5), T0.AddDays(10));
+        academicEvent.ScheduleStage(StageType.Call, T0, T0.AddDays(3));
+        academicEvent.ScheduleStage(StageType.Evaluation, T0.AddDays(11), T0.AddDays(30));
+
+        Assert.Equal(T0, academicEvent.StartDate);
+        Assert.Equal(T0.AddDays(30), academicEvent.EndDate);
+    }
+
+    [Fact]
+    public void Removing_the_stage_that_marked_an_end_recalculates_the_dates()
+    {
+        var academicEvent = NewEvent();
+        academicEvent.ScheduleStage(StageType.Call, T0, T0.AddDays(3));
+        academicEvent.ScheduleStage(StageType.Reception, T0.AddDays(5), T0.AddDays(10));
+
+        academicEvent.RemoveStage(StageType.Call);
+        Assert.Equal((T0.AddDays(5), T0.AddDays(10)), (academicEvent.StartDate, academicEvent.EndDate));
+
+        academicEvent.RemoveStage(StageType.Reception);
+        Assert.Null(academicEvent.StartDate);
+        Assert.Null(academicEvent.EndDate);
+    }
+
+    [Fact]
+    public void Rescheduling_a_stage_moves_the_dates_of_the_event()
+    {
+        var academicEvent = NewEvent();
+        academicEvent.ScheduleStage(StageType.Reception, T0, T0.AddDays(10));
+
+        academicEvent.ScheduleStage(StageType.Reception, T0.AddDays(2), T0.AddDays(12));
+
+        Assert.Equal((T0.AddDays(2), T0.AddDays(12)), (academicEvent.StartDate, academicEvent.EndDate));
+    }
+
     private static EventStage ScheduledStage()
     {
         var academicEvent = NewEvent();
