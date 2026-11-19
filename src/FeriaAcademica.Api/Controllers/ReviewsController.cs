@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using FeriaAcademica.Application.Features.Works.Commands.DecideReview;
 using FeriaAcademica.Application.Features.Works.Commands.StartReview;
 using FeriaAcademica.Application.Features.Works.Queries.ListAssignedWorks;
+using FeriaAcademica.Application.Features.Works.Queries.ListApprovedWorks;
 using FeriaAcademica.Domain.Works;
 using Mediator;
 using Microsoft.AspNetCore.Authorization;
@@ -20,6 +21,10 @@ public class ReviewsController(IMediator mediator) : ControllerBase
 
     [HttpGet("assigned")]
     public async Task<IReadOnlyList<AssignedWorkDto>> Assigned(CancellationToken ct) => await mediator.Send(new ListAssignedWorksQuery(UserId), ct);
+
+    /// <summary>Works of the reviewer that were approved, with their latest artifacts (the final version is marked <c>isFinal</c>).</summary>
+    [HttpGet("approved")]
+    public async Task<IReadOnlyList<AssignedWorkDto>> Approved(CancellationToken ct) => await mediator.Send(new ListApprovedWorksQuery(UserId), ct);
 
     [HttpPost("{workId:guid}/start")]
     public async Task<IActionResult> Start(Guid workId, CancellationToken ct)

@@ -5,4 +5,4 @@ public sealed record AssignedWorkDto(
     int CurrentAttempt, int RejectionCount, int MaxRejections, DateTime? EnqueuedAt, IReadOnlyList<ArtifactDto> Artifacts);
 
 /// <summary>Latest version of each artifact type.</summary>
-public sealed record ArtifactDto(Guid Id, string Type, int Version, string? FileUrl, string? LinkUrl, DateTime UploadedAt);
+public sealed record ArtifactDto(Guid Id, string Type, int Version, string? FileUrl, string? LinkUrl, DateTime UploadedAt, string? FileName, long? SizeBytes, bool IsFinal);

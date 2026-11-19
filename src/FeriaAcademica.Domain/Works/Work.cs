@@ -53,16 +53,16 @@ public sealed class Work : Entity
     public Artifact AddFile(ArtifactType type, string fileUrl, string fileName, long sizeBytes, DateTime now, DateTime? deadline = null)
     {
         ArtifactFileRules.Validate(fileName, sizeBytes);
-        return AddArtifact(type, fileUrl, null, now, deadline);
+        return AddArtifact(type, fileUrl, null, now, deadline, fileName, sizeBytes);
     }
 
     /// <summary>Adds a new version of an artifact; earlier versions are kept, so this is also how one is replaced.</summary>
-    public Artifact AddArtifact(ArtifactType type, string? fileUrl, string? linkUrl, DateTime now, DateTime? deadline = null)
+    public Artifact AddArtifact(ArtifactType type, string? fileUrl, string? linkUrl, DateTime now, DateTime? deadline = null, string? fileName = null, long? sizeBytes = null)
     {
         if (Status != WorkStatus.Draft) throw new DomainException("A work can only be edited while it is a draft.");
         EnsureBeforeDeadline(now, deadline);
         if (!string.IsNullOrWhiteSpace(linkUrl)) ArtifactLinkRules.Validate(linkUrl);
-        var artifact = new Artifact(Id, type, NextVersion(type), fileUrl, linkUrl, now);
+        var artifact = new Artifact(Id, type, NextVersion(type), fileUrl, linkUrl, now, fileName: fileName, sizeBytes: sizeBytes);
         _artifacts.Add(artifact);
         return artifact;
     }
@@ -83,7 +83,7 @@ public sealed class Work : Entity
         if (string.IsNullOrWhiteSpace(fileUrl)) throw new DomainException("The file is required.");
         ArtifactFileRules.Validate(fileName, sizeBytes);
 
-        var artifact = new Artifact(Id, ArtifactType.Document, NextVersion(ArtifactType.Document), fileUrl.Trim(), null, now, isFinal: true);
+        var artifact = new Artifact(Id, ArtifactType.Document, NextVersion(ArtifactType.Document), fileUrl.Trim(), null, now, isFinal: true, fileName: fileName, sizeBytes: sizeBytes);
         _artifacts.Add(artifact);
         return artifact;
     }

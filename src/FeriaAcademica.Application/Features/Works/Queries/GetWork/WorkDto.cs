@@ -7,7 +7,7 @@ public sealed record WorkDto(
     IReadOnlyList<WorkArtifactDto> Artifacts, IReadOnlyList<WorkReviewDto> Reviews);
 
 /// <summary>Every version is listed; the highest version of each type is the current one.</summary>
-public sealed record WorkArtifactDto(Guid Id, string Type, int Version, string? FileUrl, string? LinkUrl, DateTime UploadedAt, bool IsFinal);
+public sealed record WorkArtifactDto(Guid Id, string Type, int Version, string? FileUrl, string? LinkUrl, DateTime UploadedAt, bool IsFinal, string? FileName, long? SizeBytes);
 
 /// <summary>The reviewer's decision and feedback on one attempt.</summary>
 public sealed record WorkReviewDto(int Attempt, string Result, string? Observations, DateTime? ResolvedAt);
