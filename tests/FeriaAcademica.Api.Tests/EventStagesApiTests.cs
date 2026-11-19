@@ -41,8 +41,23 @@ public class EventStagesApiTests : IAsyncLifetime
 
         // Registration was added without dates by the test setup, so it comes last.
         Assert.Equal(["Call", "Reception", "Registration"], stages.Select(s => s.GetProperty("type").GetString()));
-        Assert.Equal("Scheduled", stages[0].GetProperty("status").GetString());
         Assert.Equal(new DateTime(2026, 10, 15, 13, 0, 0, DateTimeKind.Utc), Utc(stages[0].GetProperty("startDate")));   // 08:00 at -05:00
+    }
+
+    [Fact]
+    public async Task The_status_of_each_stage_follows_the_current_time()
+    {
+        string At(int days) => DateTime.UtcNow.AddDays(days).ToString("O");
+        await Schedule(StageType.Call, At(-10), At(-5));         // already over
+        await Schedule(StageType.Reception, At(-1), At(1));      // under way
+        await Schedule(StageType.Evaluation, At(5), At(10));     // still to come
+
+        var stages = await ListAsync();
+
+        // Registration has no dates, so it stays Scheduled and comes last.
+        Assert.Equal(
+            [("Call", "Closed"), ("Reception", "Open"), ("Evaluation", "Scheduled"), ("Registration", "Scheduled")],
+            stages.Select(s => (s.GetProperty("type").GetString()!, s.GetProperty("status").GetString()!)));
     }
 
     [Fact]
