@@ -17,8 +17,6 @@ public sealed class AcademicEvent : Entity
     public string Name { get; private set; } = default!;
     public EventStatus Status { get; private set; }
     public string? CancellationReason { get; private set; }
-    public DateTime? StartDate { get; private set; }
-    public DateTime? EndDate { get; private set; }
     public int MaxRejections { get; private set; }
     public double JuryWeight { get; private set; }
     public double AttendeeWeight { get; private set; }
@@ -26,6 +24,12 @@ public sealed class AcademicEvent : Entity
     public Guid CreatedBy { get; private set; }
     public int? Capacity { get; private set; }   // seats for registrations; null means unlimited
     public IReadOnlyCollection<EventStage> Stages => _stages;
+
+    /// <summary>The event starts with its earliest scheduled stage; null while no stage has dates. Removed stages do not count.</summary>
+    public DateTime? StartDate => _stages.Where(s => s.Status != StageStatus.Disabled).Min(s => s.StartDate);
+
+    /// <summary>The event ends with its latest scheduled stage; null while no stage has dates. Removed stages do not count.</summary>
+    public DateTime? EndDate => _stages.Where(s => s.Status != StageStatus.Disabled).Max(s => s.EndDate);
 
     /// <summary>Works can be submitted or resubmitted until the reception stage ends; null means no deadline has been set.</summary>
     public DateTime? SubmissionDeadline =>
@@ -66,6 +70,21 @@ public sealed class AcademicEvent : Entity
             throw new DomainException($"The stages of an event in state {Status} cannot be rescheduled.");
         var stage = _stages.FirstOrDefault(s => s.Type == type) ?? AddStage(type, active: true);   // scheduling a missing or removed stage adds it back
         stage.Schedule(startDate, endDate);
+    }
+
+    /// <summary>
+    /// Changes the start, the end or both of a stage that is in the timeline, keeping the date that is not given.
+    /// A stage that has no dates yet needs both.
+    /// </summary>
+    public void RescheduleStage(StageType type, DateTime? startDate, DateTime? endDate)
+    {
+        if (Status is EventStatus.Closed or EventStatus.Archived or EventStatus.Cancelled)
+            throw new DomainException($"The stages of an event in state {Status} cannot be rescheduled.");
+        var stage = _stages.FirstOrDefault(s => s.Type == type && s.Status != StageStatus.Disabled)
+            ?? throw new DomainException($"The event has no {type} stage in its timeline.");
+        if ((startDate ?? stage.StartDate) is not { } start || (endDate ?? stage.EndDate) is not { } end)
+            throw new DomainException($"The {type} stage has no dates yet: give both the start and the end.");
+        stage.Schedule(start, end);
     }
 
     /// <summary>

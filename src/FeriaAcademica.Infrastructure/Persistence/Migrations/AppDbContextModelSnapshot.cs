@@ -183,9 +183,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime?>("EndDate")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<Guid>("InstitutionId")
                         .HasColumnType("uuid");
 
@@ -199,9 +196,6 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
-
-                    b.Property<DateTime?>("StartDate")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -687,6 +681,10 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("FileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
                     b.Property<string>("FileUrl")
                         .HasColumnType("text");
 
@@ -695,6 +693,9 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("LinkUrl")
                         .HasColumnType("text");
+
+                    b.Property<long?>("SizeBytes")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("Type")
                         .IsRequired()

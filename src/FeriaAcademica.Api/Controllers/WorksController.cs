@@ -24,9 +24,6 @@ public class WorksController(IMediator mediator) : ControllerBase
     /// <summary>Send a <c>LinkUrl</c>, or a <c>FileUrl</c> with the original <c>FileName</c> and <c>FileSizeBytes</c>.</summary>
     public sealed record AddArtifactRequest(ArtifactType Type, string? LinkUrl, string? FileUrl, string? FileName, long? FileSizeBytes);
 
-    /// <summary>The uploaded final document: its <c>FileUrl</c> with the original <c>FileName</c> and <c>FileSizeBytes</c>.</summary>
-    public sealed record SubmitFinalVersionRequest(string? FileUrl, string? FileName, long? FileSizeBytes);
-
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     /// <summary>The signed-in participant's works, with their status and the feedback of the latest review.</summary>
@@ -86,11 +83,15 @@ public class WorksController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
-    /// <summary>Delivers the definitive document of an approved work (PDF, within the size limit); it is marked as the final version.</summary>
-    [HttpPost("{id:guid}/final-version")]
-    public async Task<IActionResult> SubmitFinalVersion(Guid id, SubmitFinalVersionRequest r, CancellationToken ct)
+    /// <summary>
+    /// Delivers the definitive document of an approved work: a multipart form with the <c>file</c> (see <see cref="ArtifactFileRules"/> for the format and size).
+    /// It is marked as the final version and downloads like any other file of the work.
+    /// </summary>
+    [HttpPost("{id:guid}/final-version"), RequestSizeLimit(ArtifactFileRules.MaxSizeBytes + 1024 * 1024)]
+    public async Task<IActionResult> SubmitFinalVersion(Guid id, IFormFile file, CancellationToken ct)
     {
-        var artifact = await mediator.Send(new SubmitFinalVersionCommand(id, UserId, r.FileUrl, r.FileName, r.FileSizeBytes), ct);
+        await using var content = file.OpenReadStream();
+        var artifact = await mediator.Send(new SubmitFinalVersionCommand(id, UserId, file.FileName, file.Length, content), ct);
         return Created($"/api/works/{id}", artifact);
     }
 }

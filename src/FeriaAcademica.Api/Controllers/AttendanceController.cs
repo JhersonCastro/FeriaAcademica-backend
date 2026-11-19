@@ -3,6 +3,7 @@ using FeriaAcademica.Application.Features.Attendance.Queries.GetAttendanceSummar
 using FeriaAcademica.Application.Features.Registrations;
 using FeriaAcademica.Application.Features.Registrations.Commands.RegisterForEvent;
 using FeriaAcademica.Application.Features.Registrations.Queries.GetMyRegistration;
+using FeriaAcademica.Application.Features.Registrations.Queries.ListEventRegistrations;
 using Mediator;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,6 +21,11 @@ public class AttendanceController(IMediator mediator) : ControllerBase
     [HttpPost("registrations")]
     public async Task<RegistrationDto> Register(Guid eventId, CancellationToken ct) =>
         await mediator.Send(new RegisterForEventCommand(eventId, User.UserId()), ct);
+
+    /// <summary>Everyone registered for the event, with their status and when they entered. Super admin, coordinators and teachers of the event only.</summary>
+    [HttpGet("registrations")]
+    public async Task<IReadOnlyList<EventRegistrationDto>> List(Guid eventId, CancellationToken ct) =>
+        await mediator.Send(new ListEventRegistrationsQuery(eventId, User.UserId(), User.IsSuperAdmin()), ct);
 
     /// <summary>The signed-in user's registration, with the QR content to draw and whether they already entered.</summary>
     [HttpGet("registrations/me")]

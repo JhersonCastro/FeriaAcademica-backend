@@ -32,6 +32,7 @@ internal sealed class ArtifactConfiguration : IEntityTypeConfiguration<Artifact>
     public void Configure(EntityTypeBuilder<Artifact> b)
     {
         b.ToTable("Artifacts", t => t.HasCheckConstraint("CK_Artifacts_FileOrLink", "(\"FileUrl\" IS NULL) <> (\"LinkUrl\" IS NULL)"));
+        b.Property(x => x.FileName).HasMaxLength(Artifact.MaxFileNameLength);
         b.HasIndex(x => new { x.WorkId, x.Type, x.Version }).IsUnique();
         b.HasIndex(x => x.WorkId).IsUnique().HasFilter("\"IsFinal\"");   // a work has a single final version
     }

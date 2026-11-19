@@ -33,6 +33,9 @@ public class ApiFactory : WebApplicationFactory<Program>
     private readonly bool _seedDemoData;
     private readonly string _storagePath = Path.Combine(Path.GetTempPath(), "feria-tests-" + Guid.NewGuid().ToString("N"));
 
+    /// <summary>Where the API stores uploaded files in the tests.</summary>
+    public string StoragePath => _storagePath;
+
     /// <summary>The emails the API "sent": the tests read the links from here instead of a mailbox.</summary>
     public CapturedEmails Emails { get; } = new();
 
