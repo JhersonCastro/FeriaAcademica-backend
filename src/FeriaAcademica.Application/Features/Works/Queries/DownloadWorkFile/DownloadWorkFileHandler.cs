@@ -20,6 +20,6 @@ internal sealed class DownloadWorkFileHandler(IWorkFileReadModel files, IRoleAss
         if (stored is null) return null;
 
         var contentType = stored.Extension.Equals(".pdf", StringComparison.OrdinalIgnoreCase) ? "application/pdf" : "application/octet-stream";
-        return new WorkFileDownload(stored.Content, contentType, $"{info.ArtifactType.ToLowerInvariant()}-v{info.Version}{stored.Extension.ToLowerInvariant()}");
+        return new WorkFileDownload(stored.Content, contentType, info.FileName ?? $"{info.ArtifactType.ToLowerInvariant()}-v{info.Version}{stored.Extension.ToLowerInvariant()}");
     }
 }

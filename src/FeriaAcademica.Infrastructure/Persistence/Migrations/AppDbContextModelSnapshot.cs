@@ -681,6 +681,10 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("FileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
                     b.Property<string>("FileUrl")
                         .HasColumnType("text");
 
@@ -689,6 +693,9 @@ namespace FeriaAcademica.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("LinkUrl")
                         .HasColumnType("text");
+
+                    b.Property<long?>("SizeBytes")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("Type")
                         .IsRequired()

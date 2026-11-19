@@ -19,15 +19,28 @@ public sealed class Artifact : Entity
     public string? LinkUrl { get; private set; }
     public DateTime UploadedAt { get; private set; }
     public bool IsFinal { get; private set; }   // the definitive version delivered once the work is approved
+    public string? FileName { get; private set; }   // original name of an uploaded file; null for links and files uploaded before it was kept
+    public long? SizeBytes { get; private set; }
 
     private Artifact() { } // EF Core
 
-    internal Artifact(Guid workId, ArtifactType type, int version, string? fileUrl, string? linkUrl, DateTime uploadedAt, bool isFinal = false)
+    internal Artifact(Guid workId, ArtifactType type, int version, string? fileUrl, string? linkUrl, DateTime uploadedAt, bool isFinal = false, string? fileName = null, long? sizeBytes = null)
     {
         if (string.IsNullOrWhiteSpace(fileUrl) == string.IsNullOrWhiteSpace(linkUrl))
             throw new DomainException("An artifact needs exactly one of a file or a link.");
         WorkId = workId; Type = type; Version = version; FileUrl = fileUrl; LinkUrl = linkUrl; UploadedAt = uploadedAt; IsFinal = isFinal;
+        FileName = CleanFileName(fileName); SizeBytes = sizeBytes;
     }
+
+    // Both separators, whatever the server's OS: a client may send a Windows path.
+    private static string? CleanFileName(string? name)
+    {
+        var clean = name?[(name.LastIndexOfAny(['/', '\\']) + 1)..].Trim();
+        if (string.IsNullOrEmpty(clean)) return null;
+        return clean.Length > MaxFileNameLength ? clean[..MaxFileNameLength] : clean;
+    }
+
+    public const int MaxFileNameLength = 255;
 }
 
 /// <summary>Append-only log of every state change of a work.</summary>

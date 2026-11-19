@@ -279,7 +279,7 @@ internal sealed class WorkReadModel(AppDbContext db) : IWorkReadModel
                         .Select(s => s.EndDate).FirstOrDefault(),
                     x.Closure, x.ClosureReason, x.ClosedAt,
                     Artifacts = x.Artifacts.OrderBy(a => a.Type).ThenByDescending(a => a.Version)
-                        .Select(a => new { a.Id, a.Type, a.Version, a.FileUrl, a.LinkUrl, a.UploadedAt, a.IsFinal }).ToList(),
+                        .Select(a => new { a.Id, a.Type, a.Version, a.FileUrl, a.LinkUrl, a.UploadedAt, a.IsFinal, a.FileName, a.SizeBytes }).ToList(),
                     Reviews = x.ReviewQueue.Where(q => q.Result != null).OrderBy(q => q.Attempt)
                         .Select(q => new { q.Attempt, q.Result, q.Observations, q.ResolvedAt }).ToList(),
                 })
@@ -287,7 +287,7 @@ internal sealed class WorkReadModel(AppDbContext db) : IWorkReadModel
 
         return w is null ? null : new WorkDto(w.Id, w.ParticipationId, w.EventId, w.EventName, w.ProfessorId, w.Title, w.Summary, w.Status.ToString(),
             w.CurrentAttempt, w.RejectionCount, w.MaxRejections, w.SubmittedAt, w.SubmissionDeadline, w.Closure?.ToString(), w.ClosureReason, w.ClosedAt,
-            w.Artifacts.Select(a => new WorkArtifactDto(a.Id, a.Type.ToString(), a.Version, a.FileUrl, a.LinkUrl, a.UploadedAt, a.IsFinal)).ToList(),
+            w.Artifacts.Select(a => new WorkArtifactDto(a.Id, a.Type.ToString(), a.Version, a.FileUrl, a.LinkUrl, a.UploadedAt, a.IsFinal, a.FileName, a.SizeBytes)).ToList(),
             w.Reviews.Select(r => new WorkReviewDto(r.Attempt, r.Result!.Value.ToString(), r.Observations, r.ResolvedAt)).ToList());
     }
 }
@@ -321,27 +321,39 @@ internal sealed class MyWorkReadModel(AppDbContext db) : IMyWorkReadModel
 
 internal sealed class AssignedWorkReadModel(AppDbContext db) : IAssignedWorkReadModel
 {
-    public async Task<IReadOnlyList<AssignedWorkDto>> ListAsync(Guid reviewerId, CancellationToken ct)
+    private static readonly WorkStatus[] Pending = [WorkStatus.Submitted, WorkStatus.InReview];
+    private static readonly WorkStatus[] Approved = [WorkStatus.Admitted, WorkStatus.Evaluated];
+
+    // Oldest in the queue first.
+    public async Task<IReadOnlyList<AssignedWorkDto>> ListAsync(Guid reviewerId, CancellationToken ct) =>
+        (await QueryAsync(reviewerId, Pending, ct)).OrderBy(r => r.Work.EnqueuedAt).Select(r => r.Work).ToList();
+
+    // Most recently decided first; a work with no recorded decision falls back to its submission date.
+    public async Task<IReadOnlyList<AssignedWorkDto>> ListApprovedAsync(Guid reviewerId, CancellationToken ct) =>
+        (await QueryAsync(reviewerId, Approved, ct)).OrderByDescending(r => r.DecidedAt ?? r.SubmittedAt).Select(r => r.Work).ToList();
+
+    private async Task<List<(AssignedWorkDto Work, DateTime? DecidedAt, DateTime? SubmittedAt)>> QueryAsync(Guid reviewerId, WorkStatus[] statuses, CancellationToken ct)
     {
         var rows = await (
                 from w in db.Works.AsNoTracking()
                 join p in db.Participations on w.ParticipationId equals p.Id
                 join e in db.Events on p.EventId equals e.Id
-                where w.ProfessorId == reviewerId && (w.Status == WorkStatus.Submitted || w.Status == WorkStatus.InReview)
+                where w.ProfessorId == reviewerId && statuses.Contains(w.Status)
                 select new
                 {
-                    w.Id, EventId = e.Id, EventName = e.Name, w.Title, w.Summary, w.Status, w.CurrentAttempt, w.RejectionCount, w.MaxRejections,
+                    w.Id, EventId = e.Id, EventName = e.Name, w.Title, w.Summary, w.Status, w.CurrentAttempt, w.RejectionCount, w.MaxRejections, w.SubmittedAt,
                     EnqueuedAt = w.ReviewQueue.Where(q => q.Attempt == w.CurrentAttempt).Select(q => (DateTime?)q.EnqueuedAt).FirstOrDefault(),
-                    Artifacts = w.Artifacts.Select(a => new ArtifactDto(a.Id, a.Type.ToString(), a.Version, a.FileUrl, a.LinkUrl, a.UploadedAt)).ToList(),
+                    DecidedAt = w.ReviewQueue.Where(q => q.ResolvedAt != null).OrderByDescending(q => q.Attempt).Select(q => q.ResolvedAt).FirstOrDefault(),
+                    Artifacts = w.Artifacts.Select(a => new ArtifactDto(a.Id, a.Type.ToString(), a.Version, a.FileUrl, a.LinkUrl, a.UploadedAt, a.FileName, a.SizeBytes, a.IsFinal)).ToList(),
                 })
             .ToListAsync(ct);
 
-        // Oldest in the queue first; only the latest version of each artifact type is shown.
-        return rows.OrderBy(r => r.EnqueuedAt)
-            .Select(r => new AssignedWorkDto(r.Id, r.EventId, r.EventName, r.Title, r.Summary, r.Status.ToString(),
+        // Only the latest version of each artifact type is shown.
+        return rows.Select(r => (
+            new AssignedWorkDto(r.Id, r.EventId, r.EventName, r.Title, r.Summary, r.Status.ToString(),
                 r.CurrentAttempt, r.RejectionCount, r.MaxRejections, r.EnqueuedAt,
-                r.Artifacts.GroupBy(a => a.Type).Select(g => g.MaxBy(a => a.Version)!).OrderBy(a => a.Type).ToList()))
-            .ToList();
+                r.Artifacts.GroupBy(a => a.Type).Select(g => g.MaxBy(a => a.Version)!).OrderBy(a => a.Type).ToList()),
+            r.DecidedAt, r.SubmittedAt)).ToList();
     }
 }
 
@@ -356,12 +368,12 @@ internal sealed class WorkFileReadModel(AppDbContext db) : IWorkFileReadModel
                 where w.Id == workId && a.FileUrl == fileUrl
                 select new
                 {
-                    a.Type, a.Version, p.EventId, AuthorId = p.UserId, ReviewerId = w.ProfessorId,
+                    a.Type, a.Version, a.FileName, p.EventId, AuthorId = p.UserId, ReviewerId = w.ProfessorId,
                     IsAssignedJury = db.JuryAssignments.Any(j => j.WorkId == w.Id && j.JuryId == userId),
                 })
             .FirstOrDefaultAsync(ct);
 
-        return row is null ? null : new WorkFileInfo(row.Type.ToString(), row.Version, row.EventId, row.AuthorId, row.ReviewerId, row.IsAssignedJury);
+        return row is null ? null : new WorkFileInfo(row.Type.ToString(), row.Version, row.FileName, row.EventId, row.AuthorId, row.ReviewerId, row.IsAssignedJury);
     }
 }
 

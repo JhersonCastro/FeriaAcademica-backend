@@ -77,7 +77,7 @@ public class WorkFilesApiTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("application/pdf", response.Content.Headers.ContentType?.MediaType);
         Assert.Equal(PdfBytes, await response.Content.ReadAsByteArrayAsync());
-        Assert.Equal("document-v1.pdf", response.Content.Headers.ContentDisposition?.FileName?.Trim('"'));
+        Assert.Equal("informe.pdf", response.Content.Headers.ContentDisposition?.FileName?.Trim('"'));
     }
 
     [Fact]
@@ -140,7 +140,7 @@ public class WorkFilesApiTests : IAsyncLifetime
         var second = await UploadAsync("informe-v2.pdf");
 
         Assert.NotEqual(first, second);
-        Assert.Equal("document-v2.pdf", (await _author.GetAsync(second)).Content.Headers.ContentDisposition?.FileName?.Trim('"'));
+        Assert.Equal("informe-v2.pdf", (await _author.GetAsync(second)).Content.Headers.ContentDisposition?.FileName?.Trim('"'));
         Assert.Equal(HttpStatusCode.OK, (await _author.GetAsync(first)).StatusCode);
     }
 }
