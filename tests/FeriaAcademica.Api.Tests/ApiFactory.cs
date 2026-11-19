@@ -30,13 +30,19 @@ public class ApiFactory : WebApplicationFactory<Program>
 
     private readonly SqliteConnection _connection = new("DataSource=:memory:");
     private readonly TimeSpan? _tokenLifespan;
+    private readonly bool _seedDemoData;
     private readonly string _storagePath = Path.Combine(Path.GetTempPath(), "feria-tests-" + Guid.NewGuid().ToString("N"));
 
     /// <summary>The emails the API "sent": the tests read the links from here instead of a mailbox.</summary>
     public CapturedEmails Emails { get; } = new();
 
     /// <param name="tokenLifespan">Overrides how long password links stay valid (a negative value makes them expired from the start).</param>
-    public ApiFactory(TimeSpan? tokenLifespan = null) => _tokenLifespan = tokenLifespan;
+    /// <param name="seedDemoData">Loads the demo data (see DemoDataSeeder) as the API starts.</param>
+    public ApiFactory(TimeSpan? tokenLifespan = null, bool seedDemoData = false)
+    {
+        _tokenLifespan = tokenLifespan;
+        _seedDemoData = seedDemoData;
+    }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -45,6 +51,7 @@ public class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("SuperAdmin:Email", AdminEmail);
         builder.UseSetting("SuperAdmin:Password", Password);
         builder.UseSetting("SuperAdmin:FullName", "Administración");
+        if (_seedDemoData) builder.UseSetting("Demo:Seed", "true");
         builder.UseSetting("https_port", "443");   // the test server has no HTTPS endpoint from which the redirect could learn it
         builder.UseSetting("Storage:Path", _storagePath);   // uploaded files go to a temporary folder, removed on dispose
 

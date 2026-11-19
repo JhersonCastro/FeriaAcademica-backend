@@ -54,6 +54,9 @@ services:
       SuperAdmin__Email: ${SUPERADMIN_EMAIL:?define SUPERADMIN_EMAIL en deploy/.env}
       SuperAdmin__Password: ${SUPERADMIN_PASSWORD:?define SUPERADMIN_PASSWORD en deploy/.env}
       SuperAdmin__FullName: ${SUPERADMIN_FULLNAME:-Administrador}
+      # Datos de demostración (estudiantes, ferias, trabajos). Se cargan una sola vez; ver DemoDataSeeder.
+      Demo__Seed: ${DEMO_SEED:-false}
+      Demo__Password: ${DEMO_PASSWORD:-}
     volumes:
       - uploads:/data/uploads
       - dpkeys:/home/app/.aspnet/DataProtection-Keys

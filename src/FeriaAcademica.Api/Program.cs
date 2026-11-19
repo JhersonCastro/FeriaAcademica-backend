@@ -61,6 +61,7 @@ if (app.Environment.IsDevelopment() || config.GetValue<bool>("Database:MigrateOn
 }
 
 await app.Services.SeedSuperAdminAsync(config);
+await app.Services.SeedDemoDataAsync(config);   // only when Demo:Seed is true
 
 app.UseHttpsRedirection();
 app.UseCors();
