@@ -1,3 +1,6 @@
+using FeriaAcademica.Application.Abstractions;
+using FeriaAcademica.Application.Features.Attendance.Queries.GetAttendanceSummary;
+using FeriaAcademica.Application.Features.Registrations.Queries.ListEventRegistrations;
 using FeriaAcademica.Application.Features.Users;
 using FeriaAcademica.Domain.Common;
 using FeriaAcademica.Domain.Events;
@@ -8,7 +11,7 @@ namespace FeriaAcademica.Application.Features.Attendance.Commands.ScanAttendance
 
 internal sealed class ScanAttendanceHandler(
     IAcademicEventRepository events, IRoleAssignmentRepository roles, IRegistrationRepository registrations,
-    IAttendanceRepository attendances, IUserAccounts accounts)
+    IAttendanceRepository attendances, IUserAccounts accounts, IAttendanceReadModel summaries, IRealtimePublisher realtime)
     : ICommandHandler<ScanAttendanceCommand, ScanResultDto>
 {
     public async ValueTask<ScanResultDto> Handle(ScanAttendanceCommand c, CancellationToken ct)
@@ -23,12 +26,21 @@ internal sealed class ScanAttendanceHandler(
         if (registration is null || registration.EventId != academicEvent.Id)
             return new ScanResultDto(nameof(ScanOutcome.Invalid), "This QR code is not registered for this event.", null, null);
 
-        var name = (await accounts.FindAsync(registration.UserId, ct))?.FullName;
+        var account = await accounts.FindAsync(registration.UserId, ct);
+        var name = account?.FullName;
         var existing = await attendances.GetByRegistrationAsync(registration.Id, ct);
         var result = registration.CheckIn(existing, c.ActorId, DateTime.UtcNow);
 
         if (result.Outcome == CheckInOutcome.Entered && !await attendances.TryAddAsync(result.Attendance!, ct))
             result = new CheckInResult(CheckInOutcome.AlreadyEntered, await attendances.GetByRegistrationAsync(registration.Id, ct));
+
+        // Only the scan that really let the person in announces it; a repeated or lost-race scan changes nothing.
+        if (result.Outcome == CheckInOutcome.Entered && account is not null)
+        {
+            realtime.ToEvent(academicEvent.Id, RealtimeEvents.Entered,
+                new EventRegistrationDto(registration.Id, registration.UserId, account.FullName, account.Email, nameof(RegistrationStatus.Registered), result.Attendance!.At));
+            realtime.ToEvent(academicEvent.Id, RealtimeEvents.Summary, await summaries.GetSummaryAsync(academicEvent.Id, ct));
+        }
 
         return result.Outcome switch
         {

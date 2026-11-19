@@ -32,6 +32,7 @@ using FeriaAcademica.Infrastructure.Email;
 using FeriaAcademica.Infrastructure.Identity;
 using FeriaAcademica.Infrastructure.Pdf;
 using FeriaAcademica.Infrastructure.Persistence;
+using FeriaAcademica.Infrastructure.Realtime;
 using FeriaAcademica.Infrastructure.Storage;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -100,6 +101,10 @@ public static class DependencyInjection
         // The cookie is re-checked against the security stamp every minute, so a deactivated user loses open sessions quickly.
         s.TryAddScoped<ISecurityStampValidator, SecurityStampValidator<ApplicationUser>>();
         s.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.FromMinutes(1));
+
+        // Real time (SSE): one in-memory hub for the whole process; see RealtimeHub for the single-instance limit.
+        s.AddSingleton<RealtimeHub>();
+        s.AddSingleton<IRealtimePublisher>(sp => sp.GetRequiredService<RealtimeHub>());
 
         s.AddScoped<IAuthService, AuthService>();
         s.AddScoped<IUserAccounts, UserAccounts>();
