@@ -118,4 +118,47 @@ public class EventStagesApiTests : IAsyncLifetime
         var after = (await (await _admin.GetAsync("/api/events")).JsonAsync()).EnumerateArray().Single().GetProperty("submissionDeadline");
         Assert.Equal(JsonValueKind.Null, after.ValueKind);
     }
+
+    private async Task<JsonElement> TheEventAsync(Guid? id = null) =>
+        (await (await _admin.GetAsync("/api/events")).JsonAsync()).EnumerateArray().Single(e => e.GetProperty("id").GetGuid() == (id ?? _eventId));
+
+    [Fact]
+    public async Task A_fair_without_scheduled_stages_has_no_dates()
+    {
+        var fair = await TheEventAsync();
+
+        Assert.Equal(JsonValueKind.Null, fair.GetProperty("startDate").ValueKind);
+        Assert.Equal(JsonValueKind.Null, fair.GetProperty("endDate").ValueKind);
+    }
+
+    [Fact]
+    public async Task The_dates_of_a_fair_are_the_earliest_start_and_the_latest_end_of_its_stages_and_follow_the_timeline()
+    {
+        await Schedule(StageType.Reception, "2026-11-01T00:00:00Z", "2026-11-20T23:59:00Z");
+        await Schedule(StageType.Call, "2026-10-15T08:00:00-05:00", "2026-10-31T23:59:00Z");
+        await Schedule(StageType.Evaluation, "2026-12-01T00:00:00Z", "2026-12-15T23:59:00Z");
+
+        var fair = await TheEventAsync();
+        Assert.Equal(new DateTime(2026, 10, 15, 13, 0, 0, DateTimeKind.Utc), Utc(fair.GetProperty("startDate")));
+        Assert.Equal(new DateTime(2026, 12, 15, 23, 59, 0, DateTimeKind.Utc), Utc(fair.GetProperty("endDate")));
+
+        await _admin.DeleteAsync($"{Stages}/Evaluation");   // the stage that marked the end leaves the timeline
+        await _admin.DeleteAsync($"{Stages}/Call");         // and the one that marked the start
+
+        fair = await TheEventAsync();
+        Assert.Equal(new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc), Utc(fair.GetProperty("startDate")));
+        Assert.Equal(new DateTime(2026, 11, 20, 23, 59, 0, DateTimeKind.Utc), Utc(fair.GetProperty("endDate")));
+    }
+
+    [Fact]
+    public async Task The_fairs_are_listed_by_their_start_date()
+    {
+        var later = await _api.CreateEventAsync(await _admin.MyIdAsync(), "Aaa: starts later", closed: false);
+        await Schedule(StageType.Reception, "2026-11-01T00:00:00Z", "2026-11-20T23:59:00Z");
+        await _admin.PutAsJsonAsync($"/api/events/{later}/stages/{StageType.Reception}", new { startDate = "2026-12-01T00:00:00Z", endDate = "2026-12-20T23:59:00Z" });
+
+        var ids = (await (await _admin.GetAsync("/api/events")).JsonAsync()).EnumerateArray().Select(e => e.GetProperty("id").GetGuid());
+
+        Assert.Equal([_eventId, later], ids);   // by date, not by name: "Aaa" would come first otherwise
+    }
 }
