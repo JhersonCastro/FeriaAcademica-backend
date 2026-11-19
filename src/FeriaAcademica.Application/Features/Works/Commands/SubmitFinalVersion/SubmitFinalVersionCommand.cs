@@ -3,5 +3,5 @@ using Mediator;
 
 namespace FeriaAcademica.Application.Features.Works.Commands.SubmitFinalVersion;
 
-/// <summary>The uploaded final document: its URL plus the original name and size, which the format and size rules check.</summary>
-public sealed record SubmitFinalVersionCommand(Guid WorkId, Guid ActorId, string? FileUrl, string? FileName, long? FileSizeBytes) : ICommand<AddedArtifact>;
+/// <summary>Stores the uploaded final document and marks it as the final version; the format and size rules check <paramref name="FileName"/> and <paramref name="SizeBytes"/>.</summary>
+public sealed record SubmitFinalVersionCommand(Guid WorkId, Guid ActorId, string FileName, long SizeBytes, Stream Content) : ICommand<AddedArtifact>;
