@@ -147,7 +147,7 @@ La respuesta incluye `attendeeName` y `enteredAt` para mostrar quién es. Dos le
 
 ## Versión final, informe del evento y certificados
 
-**Versión final (HU-030).** Cuando el profesor aprueba un trabajo (`Admitted`), su autor sube la versión definitiva con `POST /api/works/{id}/final-version` y `{ "fileUrl", "fileName", "fileSizeBytes" }`. Se valida el formato (PDF) y el tamaño (10 MB) y el documento queda marcado como definitivo (`isFinal` en `GET /api/works/{id}`). Solo hay una versión final por trabajo.
+**Versión final (HU-030).** Cuando el profesor aprueba un trabajo (`Admitted`), su autor sube la versión definitiva con `POST /api/works/{id}/final-version` como `multipart/form-data` con un único campo `file` (el PDF). Se valida el formato (PDF) y el tamaño (10 MB) antes de guardar el archivo, y el documento queda marcado como definitivo (`isFinal` en `GET /api/works/{id}`) y se descarga con su `fileUrl`, como cualquier otro archivo. Solo hay una versión final por trabajo.
 
 **Informe del evento (HU-031, HU-032).** `GET /api/events/{id}/report/summary` calcula las cifras en el momento de pedirlas. El informe es HTML libre que arma el súper admin (texto, estilos, imágenes en línea con `data:`), y el frontend inserta allí esas cifras. El PDF es esa misma página; el servidor no descarga imágenes ni hojas de estilo externas.
 
