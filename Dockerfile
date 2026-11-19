@@ -11,6 +11,10 @@ WORKDIR /app
 # or every new container invalidates sessions and the links already emailed.
 RUN mkdir -p /data/uploads /home/app/.aspnet/DataProtection-Keys \
     && chown -R app:app /data/uploads /home/app/.aspnet
+# The image has no fonts and PDFsharp needs a complete sans-serif family (regular, bold, italic, bold italic) to draw certificates and reports.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/publish .
 USER app
 ENV ASPNETCORE_HTTP_PORTS=8080
