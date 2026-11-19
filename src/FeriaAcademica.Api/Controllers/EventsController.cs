@@ -3,6 +3,7 @@ using FeriaAcademica.Application.Features.Events.Commands.CloseEvent;
 using FeriaAcademica.Application.Features.Events.Commands.CreateEvent;
 using FeriaAcademica.Application.Features.Events.Commands.PublishEvent;
 using FeriaAcademica.Application.Features.Events.Commands.RemoveEventStage;
+using FeriaAcademica.Application.Features.Events.Commands.RescheduleEventStage;
 using FeriaAcademica.Application.Features.Events.Commands.SaveEventReport;
 using FeriaAcademica.Application.Features.Events.Commands.ScheduleEventStage;
 using FeriaAcademica.Application.Features.Events.Commands.SetEventCapacity;
@@ -25,9 +26,11 @@ namespace FeriaAcademica.Api.Controllers;
 [ApiController, Route("api/events"), Authorize]
 public class EventsController(IMediator mediator) : ControllerBase
 {
-    public sealed record CreateEventRequest(Guid InstitutionId, string Name, int? Capacity = null);
+    /// <summary>Stages is optional: the timeline programmed in the creation form, saved with the fair.</summary>
+    public sealed record CreateEventRequest(Guid InstitutionId, string Name, int? Capacity = null, IReadOnlyList<NewEventStage>? Stages = null);
     public sealed record SetCapacityRequest(int? Capacity);
     public sealed record ScheduleStageRequest(DateTime StartDate, DateTime EndDate);
+    public sealed record EditStageRequest(DateTime? StartDate, DateTime? EndDate);
     public sealed record AssignRoleRequest(Guid UserId, string Role);
     public sealed record InviteRequest(string Email, string Role);
     public sealed record SaveReportRequest(string? Html);
@@ -47,7 +50,7 @@ public class EventsController(IMediator mediator) : ControllerBase
     [HttpPost, Authorize(Policy = AppClaims.SuperAdminPolicy)]
     public async Task<IActionResult> Create(CreateEventRequest r, CancellationToken ct)
     {
-        var id = await mediator.Send(new CreateEventCommand(r.InstitutionId, r.Name, User.UserId(), r.Capacity), ct);
+        var id = await mediator.Send(new CreateEventCommand(r.InstitutionId, r.Name, User.UserId(), r.Capacity, r.Stages), ct);
         return Created($"/api/events/{id}", new { id });
     }
 
@@ -82,8 +85,16 @@ public class EventsController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
-    /// <summary>The stages in the event's timeline, in date order. A stage that was removed does not appear.</summary>
-    [HttpGet("{id:guid}/stages"), Authorize(Policy = AppClaims.SuperAdminPolicy)]
+    /// <summary>Changes only the dates that are sent (start, end or both) of a stage in the timeline; a stage without dates needs both.</summary>
+    [HttpPatch("{id:guid}/stages/{type}"), Authorize(Policy = AppClaims.SuperAdminPolicy)]
+    public async Task<IActionResult> EditStage(Guid id, StageType type, EditStageRequest r, CancellationToken ct)
+    {
+        await mediator.Send(new RescheduleEventStageCommand(id, type, r.StartDate, r.EndDate), ct);
+        return NoContent();
+    }
+
+    /// <summary>The stages in the event's timeline, in date order, with their order in the natural sequence. A stage that was removed does not appear. Anyone signed in can read it.</summary>
+    [HttpGet("{id:guid}/stages")]
     public async Task<IActionResult> ListStages(Guid id, CancellationToken ct) =>
         await mediator.Send(new ListEventStagesQuery(id), ct) is { } stages ? Ok(stages) : NotFound();
 

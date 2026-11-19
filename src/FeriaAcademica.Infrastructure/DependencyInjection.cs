@@ -13,6 +13,7 @@ using FeriaAcademica.Application.Features.Institutions.Queries.ListInstitutions;
 using FeriaAcademica.Application.Features.Invitations.Queries.GetInvitation;
 using FeriaAcademica.Application.Features.Notifications.Queries.ListMyNotifications;
 using FeriaAcademica.Application.Features.Registrations.Queries.GetMyRegistration;
+using FeriaAcademica.Application.Features.Registrations.Queries.ListEventRegistrations;
 using FeriaAcademica.Application.Features.Users;
 using FeriaAcademica.Application.Features.Users.Queries.GetUser;
 using FeriaAcademica.Application.Features.Users.Queries.ListUsers;
@@ -63,6 +64,7 @@ public static class DependencyInjection
         s.AddScoped<IRegistrationReadModel, RegistrationReadModel>();
         s.AddScoped<IAttendanceRepository, AttendanceRepository>();
         s.AddScoped<IAttendanceReadModel, AttendanceReadModel>();
+        s.AddScoped<IEventRegistrationReadModel, EventRegistrationReadModel>();
         s.AddScoped<IWorkRepository, WorkRepository>();
         s.AddScoped<IWorkReadModel, WorkReadModel>();
         s.AddScoped<IMyWorkReadModel, MyWorkReadModel>();

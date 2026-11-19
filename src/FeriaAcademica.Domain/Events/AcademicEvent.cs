@@ -73,6 +73,21 @@ public sealed class AcademicEvent : Entity
     }
 
     /// <summary>
+    /// Changes the start, the end or both of a stage that is in the timeline, keeping the date that is not given.
+    /// A stage that has no dates yet needs both.
+    /// </summary>
+    public void RescheduleStage(StageType type, DateTime? startDate, DateTime? endDate)
+    {
+        if (Status is EventStatus.Closed or EventStatus.Archived or EventStatus.Cancelled)
+            throw new DomainException($"The stages of an event in state {Status} cannot be rescheduled.");
+        var stage = _stages.FirstOrDefault(s => s.Type == type && s.Status != StageStatus.Disabled)
+            ?? throw new DomainException($"The event has no {type} stage in its timeline.");
+        if ((startDate ?? stage.StartDate) is not { } start || (endDate ?? stage.EndDate) is not { } end)
+            throw new DomainException($"The {type} stage has no dates yet: give both the start and the end.");
+        stage.Schedule(start, end);
+    }
+
+    /// <summary>
     /// Takes a stage out of the timeline (it is disabled, not deleted). Without the Reception stage there is no submission deadline.
     /// A published event keeps at least one active stage.
     /// </summary>
