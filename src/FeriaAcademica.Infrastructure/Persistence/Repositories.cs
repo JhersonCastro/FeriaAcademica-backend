@@ -404,14 +404,14 @@ internal sealed class EventReportReadModel(AppDbContext db) : IEventReportReadMo
 
 internal sealed class EventStageReadModel(AppDbContext db) : IEventStageReadModel
 {
-    public async Task<IReadOnlyList<EventStageDto>?> ListAsync(Guid eventId, CancellationToken ct)
+    public async Task<IReadOnlyList<EventStageDto>?> ListAsync(Guid eventId, DateTime now, CancellationToken ct)
     {
         if (!await db.Events.AnyAsync(e => e.Id == eventId, ct)) return null;
 
         var stages = await db.EventStages.AsNoTracking().Where(s => s.EventId == eventId && s.Status != StageStatus.Disabled).ToListAsync(ct);
         // Sorted here: the type is stored as text, so the database would sort it alphabetically instead of in stage order.
         return stages.OrderBy(s => s.StartDate ?? DateTime.MaxValue).ThenBy(s => s.Type)
-            .Select(s => new EventStageDto(s.Type.ToString(), s.Status.ToString(), s.StartDate, s.EndDate)).ToList();
+            .Select(s => new EventStageDto(s.Type.ToString(), s.StatusAt(now).ToString(), s.StartDate, s.EndDate)).ToList();
     }
 }
 

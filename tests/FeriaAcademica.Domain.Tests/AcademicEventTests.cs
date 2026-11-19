@@ -180,4 +180,39 @@ public class AcademicEventTests
 
         Assert.Equal((T0.AddDays(2), T0.AddDays(12)), (academicEvent.StartDate, academicEvent.EndDate));
     }
+
+    private static EventStage ScheduledStage()
+    {
+        var academicEvent = NewEvent();
+        academicEvent.ScheduleStage(StageType.Reception, T0, T0.AddDays(10));
+        return academicEvent.Stages.Single();
+    }
+
+    [Theory]
+    [InlineData(-1, StageStatus.Scheduled)]   // a day before it starts
+    [InlineData(0, StageStatus.Open)]         // exactly when it starts
+    [InlineData(5, StageStatus.Open)]
+    [InlineData(10, StageStatus.Closed)]      // exactly when it ends
+    [InlineData(30, StageStatus.Closed)]
+    public void A_stage_is_Scheduled_Open_or_Closed_depending_on_the_time(int daysFromStart, StageStatus expected) =>
+        Assert.Equal(expected, ScheduledStage().StatusAt(T0.AddDays(daysFromStart)));
+
+    [Fact]
+    public void A_stage_without_dates_stays_Scheduled()
+    {
+        var academicEvent = NewEvent();
+        var stage = academicEvent.AddStage(StageType.Reception, active: true);
+
+        Assert.Equal(StageStatus.Scheduled, stage.StatusAt(T0.AddYears(5)));
+    }
+
+    [Fact]
+    public void A_removed_stage_stays_Disabled_whatever_the_time()
+    {
+        var academicEvent = NewEvent();
+        academicEvent.ScheduleStage(StageType.Reception, T0, T0.AddDays(10));
+        academicEvent.RemoveStage(StageType.Reception);
+
+        Assert.Equal(StageStatus.Disabled, academicEvent.Stages.Single().StatusAt(T0.AddDays(5)));
+    }
 }
