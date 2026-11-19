@@ -1,4 +1,5 @@
 using FeriaAcademica.Application.Abstractions;
+using FeriaAcademica.Application.Features.Notifications.Queries.ListMyNotifications;
 using FeriaAcademica.Domain.Common;
 using FeriaAcademica.Domain.Events;
 using FeriaAcademica.Domain.Notifications;
@@ -8,7 +9,7 @@ using Mediator;
 namespace FeriaAcademica.Application.Features.Works.Commands.DecideReview;
 
 internal sealed class DecideReviewHandler(
-    IWorkRepository works, IParticipationRepository participations, INotificationRepository notifications, IUnitOfWork uow)
+    IWorkRepository works, IParticipationRepository participations, INotificationRepository notifications, IUnitOfWork uow, IRealtimePublisher realtime)
     : ICommandHandler<DecideReviewCommand, Unit>
 {
     public const string NotificationType = "WorkReviewed";
@@ -30,10 +31,11 @@ internal sealed class DecideReviewHandler(
             WorkStatus.Draft => "was approved with changes: apply the feedback and submit it again",
             _ => "was rejected",
         };
-        await notifications.AddAsync(
-            Notification.Create(participation.UserId, participation.EventId, NotificationType, $"Your work \"{work.Title}\" {outcome}.", now), ct);
+        var notification = Notification.Create(participation.UserId, participation.EventId, NotificationType, $"Your work \"{work.Title}\" {outcome}.", now);
+        await notifications.AddAsync(notification, ct);
 
         await uow.SaveChangesAsync(ct);
+        realtime.ToUser(participation.UserId, RealtimeEvents.Notification, NotificationDto.From(notification));   // after saving, so nothing unsaved is announced
         return Unit.Value;
     }
 }
