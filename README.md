@@ -124,6 +124,19 @@ La respuesta incluye `attendeeName` y `enteredAt` para mostrar quién es. Dos le
 | `GET /api/events/{id}/registrations` | Súper admin, coordinador o profesor del evento | Lista de inscritos: nombre, correo, `status` (`Registered` o `Cancelled`) y `enteredAt` si ya ingresó. |
 | `POST /api/events/{id}/attendance/scan` | Súper admin, coordinador o profesor del evento | Registrar asistencia con el QR leído. |
 | `GET /api/events/{id}/attendance/summary` | Súper admin, coordinador o profesor del evento | `registered`, `entered`, `pending` y `lastEntryAt`; el frontend lo consulta cada pocos segundos para ver la afluencia. Las inscripciones canceladas no cuentan. |
+| `GET /api/events/{id}/attendance/stream` | Súper admin, coordinador o profesor del evento | Tiempo real (SSE) de la afluencia, ver abajo. |
+
+## Tiempo real (Server-Sent Events)
+
+Dos endpoints se quedan abiertos y empujan los cambios, para que el frontend no tenga que consultar cada pocos segundos. Se autentican con la **cookie de sesión** (`EventSource` no puede enviar cabeceras), responden `text/event-stream` con `Cache-Control: no-cache` y `X-Accel-Buffering: no`, y envían un comentario `: ping` cada 15 s para que ningún proxy dé por muerta la conexión. Sin sesión responden 401; sin permiso, lo mismo que el endpoint REST equivalente. Al conectar no repiten lo perdido: el cliente carga el estado completo por REST y luego sigue el stream.
+
+| Endpoint | Evento | `data` | Cuándo |
+| --- | --- | --- | --- |
+| `GET /api/notifications/stream` | `notification` | `NotificationDto` (`id`, `eventId`, `type`, `message`, `isRead`, `createdAt`) | Se crea una notificación **para el usuario de la sesión** (`WorkReviewed`, `FinalVersionSubmitted`...). |
+| `GET /api/events/{id}/attendance/stream` | `entered` | `EventRegistrationDto` (`registrationId`, `userId`, `fullName`, `email`, `status`, `enteredAt`) | Tras cada check-in `Valid` (no con `AlreadyEntered` ni `Invalid`). Se envía antes que `summary`. |
+| | `summary` | `AttendanceSummaryDto` (`eventId`, `registered`, `entered`, `pending`, `lastEntryAt`) | Tras cada check-in válido y cuando alguien se inscribe. |
+
+Los mensajes se publican **después de guardar** en la base de datos. El reparto es en memoria (`RealtimeHub`), así que solo funciona con **una instancia** de la API; con varias habría que pasarlo a Redis pub/sub o a `LISTEN/NOTIFY` de Postgres. Detrás de un proxy hay que desactivar el buffer y subir el tiempo de lectura para estas rutas (en nginx: `proxy_buffering off;` y `proxy_read_timeout 1h;` en `location ~ ^/api/.+/stream$`).
 
 ## Envío de trabajos (EP-02)
 

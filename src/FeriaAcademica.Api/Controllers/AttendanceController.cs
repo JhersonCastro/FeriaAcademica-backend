@@ -4,6 +4,8 @@ using FeriaAcademica.Application.Features.Registrations;
 using FeriaAcademica.Application.Features.Registrations.Commands.RegisterForEvent;
 using FeriaAcademica.Application.Features.Registrations.Queries.GetMyRegistration;
 using FeriaAcademica.Application.Features.Registrations.Queries.ListEventRegistrations;
+using FeriaAcademica.Api.Realtime;
+using FeriaAcademica.Infrastructure.Realtime;
 using Mediator;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -41,4 +43,19 @@ public class AttendanceController(IMediator mediator) : ControllerBase
     [HttpGet("attendance/summary")]
     public async Task<AttendanceSummaryDto> Summary(Guid eventId, CancellationToken ct) =>
         await mediator.Send(new GetAttendanceSummaryQuery(eventId, User.UserId(), User.IsSuperAdmin()), ct);
+
+    /// <summary>
+    /// Server-Sent Events for the turnout of the event: <c>entered</c> (an <c>EventRegistrationDto</c>, sent first) and <c>summary</c>
+    /// (an <c>AttendanceSummaryDto</c>) after each valid check-in, and <c>summary</c> alone when someone registers. Same access as
+    /// <c>attendance/summary</c>. Authenticated by the session cookie. The client loads the current state over REST when it connects.
+    /// </summary>
+    [HttpGet("attendance/stream")]
+    public async Task Stream(Guid eventId, [FromServices] RealtimeHub hub)
+    {
+        // Asking for the summary applies the access rule (and fails for an unknown event) before the connection is opened.
+        await mediator.Send(new GetAttendanceSummaryQuery(eventId, User.UserId(), User.IsSuperAdmin()), HttpContext.RequestAborted);
+
+        using var subscription = hub.SubscribeToEvent(eventId);
+        await SseResponse.WriteAsync(HttpContext, subscription, hub.HeartbeatInterval);
+    }
 }
