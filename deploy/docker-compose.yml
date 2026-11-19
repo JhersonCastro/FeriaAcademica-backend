@@ -43,7 +43,7 @@ services:
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
       Database__MigrateOnStartup: "true"
       Storage__Path: /data/uploads
-      ConnectionStrings__Default: Host=postgres;Port=5432;Database=feria_academica;Username=feria;Password=${POSTGRES_PASSWORD}
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=${DB_NAME:-feria_academica};Username=feria;Password=${POSTGRES_PASSWORD}
       Frontend__BaseUrl: ${FRONTEND_BASEURL:-https://feria-academica.simplebucket.app}
       Smtp__Host: ${SMTP_HOST:-smtp-relay.brevo.com}
       Smtp__Port: ${SMTP_PORT:-587}
@@ -55,6 +55,7 @@ services:
       SuperAdmin__Password: ${SUPERADMIN_PASSWORD:?define SUPERADMIN_PASSWORD en deploy/.env}
       SuperAdmin__FullName: ${SUPERADMIN_FULLNAME:-Administrador}
       # Datos de demostración (estudiantes, ferias, trabajos). Se cargan una sola vez; ver DemoDataSeeder.
+      # Demo: DB_NAME=feriademo usa otra base en el mismo Postgres (se crea sola); los datos reales no se tocan.
       Demo__Seed: ${DEMO_SEED:-false}
       Demo__Password: ${DEMO_PASSWORD:-}
     volumes:
