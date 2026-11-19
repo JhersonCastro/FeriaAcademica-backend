@@ -6,6 +6,7 @@ using FeriaAcademica.Application.Features.Events.Queries.GetMyParticipation;
 using FeriaAcademica.Application.Features.Events.Queries.ListEventProfessors;
 using FeriaAcademica.Application.Features.Events.Queries.ListEvents;
 using FeriaAcademica.Application.Features.Events.Queries.ListEventStages;
+using FeriaAcademica.Application.Features.Institutions.Queries.ListInstitutions;
 using FeriaAcademica.Application.Features.Invitations.Queries.GetInvitation;
 using FeriaAcademica.Application.Features.Notifications.Queries.ListMyNotifications;
 using FeriaAcademica.Application.Features.Registrations;
@@ -20,6 +21,7 @@ using FeriaAcademica.Application.Features.Works.Queries.ListMyWorks;
 using FeriaAcademica.Application.Features.Evaluation;
 using FeriaAcademica.Domain.Evaluation;
 using FeriaAcademica.Domain.Events;
+using FeriaAcademica.Domain.Institutions;
 using FeriaAcademica.Domain.Notifications;
 using FeriaAcademica.Domain.Registrations;
 using FeriaAcademica.Domain.Works;
@@ -42,17 +44,42 @@ internal sealed class AcademicEventRepository(AppDbContext db) : IAcademicEventR
 internal sealed class EventReadModel(AppDbContext db) : IEventReadModel
 {
     public async Task<IReadOnlyList<EventDto>> ListAsync(CancellationToken ct) =>
-        await db.Events.AsNoTracking().OrderBy(e => e.StartDate).ThenBy(e => e.Name)
+        await db.Events.AsNoTracking()
             .Select(e => new
             {
-                e.Id, e.InstitutionId, e.Name, e.Status, e.StartDate, e.EndDate, e.Capacity,
+                e.Id, e.InstitutionId, e.Name, e.Status, e.Capacity,
+                // The dates of the fair are those of its timeline: the earliest start and the latest end among the stages that are not removed.
+                StartDate = db.EventStages.Where(s => s.EventId == e.Id && s.Status != StageStatus.Disabled).Min(s => s.StartDate),
+                EndDate = db.EventStages.Where(s => s.EventId == e.Id && s.Status != StageStatus.Disabled).Max(s => s.EndDate),
                 Registered = db.Registrations.Count(r => r.EventId == e.Id && r.Status == RegistrationStatus.Registered),
                 SubmissionDeadline = db.EventStages
                     .Where(s => s.EventId == e.Id && s.Type == StageType.Reception && s.Status != StageStatus.Disabled)
                     .Select(s => s.EndDate).FirstOrDefault(),
             })
+            .OrderBy(e => e.StartDate).ThenBy(e => e.Name)
             .Select(e => new EventDto(e.Id, e.InstitutionId, e.Name, e.Status.ToString(), e.StartDate, e.EndDate,
                 e.Capacity, e.Registered, e.Capacity == null ? null : Math.Max(0, e.Capacity.Value - e.Registered), e.SubmissionDeadline))
+            .ToListAsync(ct);
+}
+
+internal sealed class InstitutionRepository(AppDbContext db) : IInstitutionRepository
+{
+    public Task<Institution?> GetAsync(Guid id, CancellationToken ct) => db.Institutions.FirstOrDefaultAsync(i => i.Id == id, ct);
+
+    public async Task AddAsync(Institution institution, CancellationToken ct) => await db.Institutions.AddAsync(institution, ct);
+
+    public Task<bool> NameExistsAsync(string name, Guid? exceptId, CancellationToken ct)
+    {
+        var lower = name.ToLower();
+        return db.Institutions.AnyAsync(i => i.Name.ToLower() == lower && i.Id != exceptId, ct);
+    }
+}
+
+internal sealed class InstitutionReadModel(AppDbContext db) : IInstitutionReadModel
+{
+    public async Task<IReadOnlyList<InstitutionDto>> ListAsync(CancellationToken ct) =>
+        await db.Institutions.AsNoTracking().OrderBy(i => i.Name)
+            .Select(i => new InstitutionDto(i.Id, i.Name, i.Acronym, i.IsActive, db.Events.Count(e => e.InstitutionId == i.Id)))
             .ToListAsync(ct);
 }
 
@@ -399,14 +426,14 @@ internal sealed class EventReportReadModel(AppDbContext db) : IEventReportReadMo
 
 internal sealed class EventStageReadModel(AppDbContext db) : IEventStageReadModel
 {
-    public async Task<IReadOnlyList<EventStageDto>?> ListAsync(Guid eventId, CancellationToken ct)
+    public async Task<IReadOnlyList<EventStageDto>?> ListAsync(Guid eventId, DateTime now, CancellationToken ct)
     {
         if (!await db.Events.AnyAsync(e => e.Id == eventId, ct)) return null;
 
         var stages = await db.EventStages.AsNoTracking().Where(s => s.EventId == eventId && s.Status != StageStatus.Disabled).ToListAsync(ct);
         // Sorted here: the type is stored as text, so the database would sort it alphabetically instead of in stage order.
         return stages.OrderBy(s => s.StartDate ?? DateTime.MaxValue).ThenBy(s => s.Type)
-            .Select(s => new EventStageDto(s.Type.ToString(), s.Order, s.Status.ToString(), s.StartDate, s.EndDate)).ToList();
+            .Select(s => new EventStageDto(s.Type.ToString(), s.Order, s.StatusAt(now).ToString(), s.StartDate, s.EndDate)).ToList();
     }
 }
 

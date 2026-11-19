@@ -17,8 +17,6 @@ public sealed class AcademicEvent : Entity
     public string Name { get; private set; } = default!;
     public EventStatus Status { get; private set; }
     public string? CancellationReason { get; private set; }
-    public DateTime? StartDate { get; private set; }
-    public DateTime? EndDate { get; private set; }
     public int MaxRejections { get; private set; }
     public double JuryWeight { get; private set; }
     public double AttendeeWeight { get; private set; }
@@ -26,6 +24,12 @@ public sealed class AcademicEvent : Entity
     public Guid CreatedBy { get; private set; }
     public int? Capacity { get; private set; }   // seats for registrations; null means unlimited
     public IReadOnlyCollection<EventStage> Stages => _stages;
+
+    /// <summary>The event starts with its earliest scheduled stage; null while no stage has dates. Removed stages do not count.</summary>
+    public DateTime? StartDate => _stages.Where(s => s.Status != StageStatus.Disabled).Min(s => s.StartDate);
+
+    /// <summary>The event ends with its latest scheduled stage; null while no stage has dates. Removed stages do not count.</summary>
+    public DateTime? EndDate => _stages.Where(s => s.Status != StageStatus.Disabled).Max(s => s.EndDate);
 
     /// <summary>Works can be submitted or resubmitted until the reception stage ends; null means no deadline has been set.</summary>
     public DateTime? SubmissionDeadline =>
